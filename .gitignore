@@ -1,0 +1,14 @@
+.venv
+temp2
+temp
+CKold
+jaffe
+kyoto
+temp_autoencoder
+bkp
+shape_predictor_68_face_landmarks.dat
+Dataset
+.idea
+__pycache__
+y.npy
+haarcascade_frontalface_alt2.xml

@@ -1,0 +1,15 @@
+1) criar um venv utilizando py venv <caminho>
+2) inicializar o venv <caminho>/Scripts/activate (caso dê erro, abrir powershell como adm, escrever "Set-ExecutionPolicy -ExecutionPolicy Unrestricted" e tentar novamente)
+3) no terminal agora deve estar ex: (.venv) PS C:\Users\cesin\Desktop\tcc\STL-main, escreva pip install -r requirements.txt
+4) você está pronto para executar os arquivos.
+
+ordem de execução:
+
+MAIN_NOVO_DEFESA.py (vai criar os modelos e os pesos)
+CLASSIFICACAO_DEFESA.py (vai utilizar os modelos, pesos e labels da base para fazer as predições)
+
+Botei o venv pra não ferrar com as bibliotecas que já estão instaladas, mas se não quiser usar venv, não precisa, basta escrever no terminal:
+
+pip install -r requirements.txt
+
+e mandar ver
