@@ -177,7 +177,7 @@ np.save('y.npy', Y_target)
 
 quant_representation_path = "./temp_autoencoder/50 REP"
 
-#LOAD THE GENERATED AUTOENCODERS AND DOES FEATURE BUILDING OF LABELED DATA
+#LOAD THE GENERATED AUTOENCODERS AND DOES FEATURE BUILDING OF LABELED DATA - 
 
 arquivosJSON = glob.glob(quant_representation_path + "/*.json")
 arquivosH5 = glob.glob(quant_representation_path + "/*.h5")
