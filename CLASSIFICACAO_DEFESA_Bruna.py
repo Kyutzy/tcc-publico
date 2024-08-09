@@ -2,123 +2,186 @@ import numpy as np
 import os
 import cv2
 from sklearn.ensemble import RandomForestClassifier, BaggingClassifier
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
 from deslib.des import KNORAU
 from numpy.random import seed
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix
-import tensorflow as tf
-#from tensorflow.keras.models import Sequential, model_from_json
+from tensorflow.keras.models import Sequential, model_from_json
 import dlib
 from imutils import face_utils
 import math
 import time
 from sklearn.decomposition import PCA
-import pandas
 import glob
-import random
-#pylint: skip-file
 
-labeled_path = r"L:/cesar/Dataset"
+labeled_path = "./jaffe/"
 size_input_data = [96, 96, 1]
+landmarks_predictor_model = './shape_predictor_68_face_landmarks.dat'
+cascade = cv2.CascadeClassifier('./haarcascade_frontalface_alt2.xml')
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor(landmarks_predictor_model)
 
-def load_yildirim(dir_path):
-    images = []
-    size_input_data = [96, 96, 1]
-    image_files = glob.glob(f"{dir_path}/*.png", recursive=True)
-    labels = [os.path.basename(os.path.dirname(file)) for file in image_files ]
+def load_labeled_database(labeled_path):
+    image_dir = "cohn-kanade-images"
+    label_dir = "Emotion"
 
-    for image_file in image_files:
-        img = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
-        img = cv2.resize(img, (size_input_data[0], size_input_data[1]))
-        img = np.reshape(img, (size_input_data[0], size_input_data[1], size_input_data[2]))
-        images.append(img)
+    features = []
+    labels = np.zeros((327, 1))
+    indiv_nomes = []
+    counter = 0
+    # Maybe sort them
+    for participant in os.listdir(os.path.join(labeled_path, image_dir)):
+        for sequence in os.listdir(os.path.join(labeled_path, image_dir, participant)):
+            if sequence != ".DS_Store":
+                image_files = sorted(os.listdir(os.path.join(labeled_path, image_dir, participant, sequence)))
+                image_file = image_files[-1]
+                input_img = cv2.imread(os.path.join(labeled_path, image_dir, participant, sequence, image_file))
+                input_img = cv2.cvtColor(input_img, cv2.COLOR_BGR2GRAY)
+                rects = cascade.detectMultiScale(input_img, 1.3, 3, cv2.CASCADE_SCALE_IMAGE, (150, 150))
+                if len(rects) > 0:
+                    facerect = rects[0]
+                    input_img = input_img[facerect[1]:facerect[1] + facerect[3], facerect[0]:facerect[0] + facerect[2]]
+                    input_img = cv2.resize(input_img, (size_input_data[0], size_input_data[1]))
+                    # input_img = np.reshape(input_img, (size_to_resize[0], size_to_resize[1], size_to_resize[2]))
+                features.append(input_img)
+                indiv_nomes.append(participant)
+                label_file = open(
+                    os.path.join(labeled_path, label_dir, participant, sequence, image_file[:-4] + "_emotion.txt"))
+                labels[counter] = eval(label_file.read())
+                label_file.close()
+                counter += 1
 
-    loaded_images = np.array(images)
-    loaded_images = loaded_images.astype('float32') / 255.0
-    labels = np.array(labels)
-    return loaded_images, labels
+    print("individuos:", counter)
+    img_data = np.array(features)
+    img_data_preprocessing = preprocessing(img_data)
 
-def load_labeled_database(dir_path):
-    train_x, train_y = load_yildirim(f"{dir_path}/Train")
-    test_x, test_y = load_yildirim(f"{dir_path}/Test")
+    return img_data_preprocessing, labels
 
-    return train_x, train_y, test_x, test_y
+def load_labeled_database_jaffe(labeled_path):
+    expres_code = ['NE', 'HA', 'AN', 'DI', 'FE', 'SA', 'SU']
 
-def split_train_test_by_number_of_autoencoders(number_of_autoencoders):
-    all_types_of_files = {
-        'kidney_train' : load_yildirim(f'{labeled_path}/Train/Kidney_stone'),
-        'kidney_test' : load_yildirim(f'{labeled_path}/Test/Kidney_stone'),
-        'normal_train' : load_yildirim(f'{labeled_path}/Train/Normal'),
-        'normal_test' : load_yildirim(f'{labeled_path}/Test/Normal')
-    }
+    data_dir_list = os.listdir(labeled_path)
+    counter = 0
+    features = []
+    labels = np.zeros((213, 1))
+    img_names = []
 
-    all_types_of_files_splitted = {
-        'kidney_train' : [[],[]],
-        'kidney_test' : [[],[]],
-        'normal_train' : [[],[]],
-        'normal_test' : [[],[]]
-    }
+    for dataset in data_dir_list:
+        img_list = os.listdir(labeled_path + '/' + dataset)
+        for img in img_list:
+            # imarray = cv2.imread(jaffe_dir + '/' + dataset + '/' + img, cv2.IMREAD_GRAYSCALE)
+            imarray = cv2.imread(labeled_path + '/' + dataset + '/' + img)
+            imarray = cv2.cvtColor(imarray, cv2.COLOR_BGR2GRAY)
 
-    for key in all_types_of_files:
-        amount_of_samples = len(all_types_of_files[key][0])
-        desired_amount_of_samples = amount_of_samples // number_of_autoencoders
-        all_types_of_files_splitted[key][0] = np.array_split(all_types_of_files[key][0], desired_amount_of_samples)
-        all_types_of_files_splitted[key][1] = np.array_split(all_types_of_files[key][1], desired_amount_of_samples)
-    return all_types_of_files, all_types_of_files_splitted
+            rects = cascade.detectMultiScale(imarray, 1.3, 3, cv2.CASCADE_SCALE_IMAGE, (150, 150))
+            if len(rects) > 0:
+                facerect = rects[0]
+                imarray = imarray[facerect[1]:facerect[1] + facerect[3], facerect[0]:facerect[0] + facerect[2]]
 
-def combine_images_and_labels(images, labels):
-    sample = list(zip(images, labels))
-    return sample
+            imarray = cv2.resize(imarray, (size_input_data[0], size_input_data[1]))
+            features.append(imarray)
+            label = img[3:5]  # each name of image have 2 char for label from index 3-5
+            labels[counter] = expres_code.index(label)
+            names = img[0:2]
+            img_names.append(names)
+            counter += 1
+    img_data = np.array(features)
+    img_data_preprocessing = preprocessing(img_data)
+    return img_data_preprocessing, labels
 
-def create_sample(sample):
-    np.random.shuffle(sample)
-    return list(zip(*sample))[0], list(zip(*sample))[1]
+def preprocessing(input_images):
+    normalized_feature_vector_array = []
+    for gray in input_images:
+        left_eye, rigth_eye = detect_eyes(gray)
 
+        angle = angle_line_x_axis(left_eye, rigth_eye)
+        rotated_img = rotateImage(gray, angle)
 
+        # line length
+        D = cv2.norm(np.array(left_eye) - np.array(rigth_eye))
 
+        # center of the line
+        D_point = [(left_eye[0] + rigth_eye[0]) / 2, (left_eye[1] + rigth_eye[1]) / 2]
 
-train_x, train_y, test_x, test_y = load_labeled_database(labeled_path)
-dataset_complete, dataset_splitted = split_train_test_by_number_of_autoencoders(10)
+        # Face ROI
+        x_point = int(D_point[0] - (0.9 * D))
+        y_point = int(D_point[1] - (0.6 * D))
+        width_point = int(1.8 * D)
+        height_point = int(2.2 * D)
+        r = [x_point, y_point, width_point, height_point]
+        face_roi = rotated_img[int(r[1]):int(r[1] + r[3]), int(r[0]):int(r[0] + r[2])]
 
-label_and_image_train_stone = combine_images_and_labels(dataset_complete['kidney_train'][0], dataset_complete['kidney_train'][1])
-label_and_image_train_normal = combine_images_and_labels(dataset_complete['normal_train'][0], dataset_complete['normal_train'][1])
-label_and_image_test_stone = combine_images_and_labels(dataset_complete['kidney_test'][0], dataset_complete['kidney_test'][1])
-label_and_image_test_normal = combine_images_and_labels(dataset_complete['normal_test'][0], dataset_complete['normal_test'][1])
+        # resize to (96, 128)
+        face_roi = cv2.resize(face_roi, (96, 96))
+        face_roi = cv2.equalizeHist(face_roi)
+        face_roi = np.reshape(face_roi, (96, 96, 1))
 
-train_x, train_y = create_sample(np.concatenate((label_and_image_train_normal, label_and_image_train_stone), axis=0))
-test_x, test_y = create_sample(np.concatenate((label_and_image_test_normal, label_and_image_test_stone), axis=0))
+        # Pass through encoder and resize
+        # feature_vector = featuremodel_AECNN.predict(face_roi)
 
+        # Reshape feature vector
+        shape = face_roi.shape
+        aux = 1
+        for i in shape:
+            aux *= i
+        feature_vector = face_roi.reshape(aux)
+        normalized_feature_vector_array.append(face_roi)
+    normalized_feature_vector_array = np.array(normalized_feature_vector_array)
+    return normalized_feature_vector_array
 
+def detect_eyes(gray):
+    rects = detector(gray, 1)
+    # loop over the face detections
+    for (i, rect) in enumerate(rects):
+        # determine the facial landmarks for the face region, then
+        # convert the landmark (x, y)-coordinates to a NumPy array
+        shape = predictor(gray, rect)
+        shape = face_utils.shape_to_np(shape)
 
-train_x = np.concatenate((dataset_complete['kidney_train'][0], dataset_complete['normal_train'][0]), axis=0)
-train_y = np.concatenate((dataset_complete['kidney_train'][1], dataset_complete['normal_train'][1]), axis=0)
+        pts_right = shape[36: 42]  # right eye landmarks
+        pts_left = shape[42: 48]  # left eye landmarks
 
-test_x = np.concatenate((dataset_complete['kidney_test'][0], dataset_complete['normal_test'][0]), axis=0)
-test_y = np.concatenate((dataset_complete['kidney_test'][1], dataset_complete['normal_test'][1]), axis=0)
+        hull_right = cv2.convexHull(pts_right)
+        M_right = cv2.moments(hull_right)
+        # calculate x,y coordinate of center
+        cX_right = int(M_right["m10"] / M_right["m00"])
+        cY_right = int(M_right["m01"] / M_right["m00"])
+        right_eye_center = (cX_right, cY_right)
 
-print(
-    f"Shapes: train_x = {train_x.shape}, train_y = {train_y.shape}, test_x = {test_x.shape}, test_y = {test_y.shape}")
+        hull_left = cv2.convexHull(pts_left)
+        M_left = cv2.moments(hull_left)
+        # calculate x,y coordinate of center
+        cX_left = int(M_left["m10"] / M_left["m00"])
+        cY_left = int(M_left["m01"] / M_left["m00"])
+        left_eye_center = (cX_left, cY_left)
 
-# # np.save('Y_train.npy', train_x)
-# # np.save('Y_test.npy', test_y)
+    return left_eye_center, right_eye_center
 
-np.save('all_labels', np.concatenate((train_y, test_y), axis=0))
+def rotateImage(image, angle):
+    image_center = tuple(np.array(image.shape[1::-1]) / 2)
+    rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+    result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+    return result
 
-np.save('Y_train.npy', train_y)
-np.save('Y_test.npy', test_y)
+def angle_line_x_axis(point1, point2):
+    angle_r = math.atan2(point1[1] - point2[1], point1[0] - point2[0]);
+    angle_degree = angle_r * 180 / math.pi;
+    return angle_degree
 
-quant_representation_path = r"L:/cesar/temp_autoencoder/10 REP"
+X_target, Y_target = load_labeled_database_jaffe(labeled_path)
+np.save('y.npy', Y_target)
 
-# #LOAD THE GENERATED AUTOENCODERS AND DOES FEATURE BUILDING OF LABELED DATA
+quant_representation_path = "./temp_autoencoder/10 REP"
+
+#LOAD THE GENERATED AUTOENCODERS AND DOES FEATURE BUILDING OF LABELED DATA
 
 arquivosJSON = glob.glob(quant_representation_path + "/*.json")
 arquivosH5 = glob.glob(quant_representation_path + "/*.h5")
-#reprs in os.listdir(quant_representation_path):
-    #for techs in os.listdir(os.path.join(quant_representation_path + reprs)):
-        #for qtd_reprs in os.listdir(os.path.join(quant_representation_path + reprs +'/'+ techs +'/')):
-            #size = int(len(os.listdir(os.path.join(quant_representation_path + reprs +'/'+ techs +'/'))) / 2)
+
 size = round(len(arquivosJSON))
 for index, arq in enumerate(arquivosJSON):
         for i in range(size):
@@ -129,7 +192,7 @@ for index, arq in enumerate(arquivosJSON):
             json_file = open(arq, 'r')
             loaded_model_json = json_file.read()
             json_file.close()
-            loaded_model = tf.keras.models.model_from_json(loaded_model_json)
+            loaded_model = model_from_json(loaded_model_json)
             #load weights into new model
             loaded_model.load_weights(arquivosH5[index])
             print("Loaded model from disk")
@@ -146,11 +209,11 @@ for index, arq in enumerate(arquivosJSON):
                     break
                 k = k + 1
             pop = tamanho - k
-            sliced_loaded_model = tf.keras.models.Sequential(loaded_model.layers[:pop])
+            sliced_loaded_model = Sequential(loaded_model.layers[:pop])
 
             sliced_loaded_model.summary()
 
-            x_target = sliced_loaded_model.predict(np.array(train_x))
+            x_target = sliced_loaded_model.predict(X_target)
             techs = os.path.basename(arq).split('.')[0]
             if not os.path.exists('./temp2/JAFFE-CK/' + str(size) + ' REP/' + techs):
                 os.makedirs('./temp2/JAFFE-CK/' + str(size) + ' REP/' + techs)
@@ -158,8 +221,6 @@ for index, arq in enumerate(arquivosJSON):
             number = i
             np.save('./temp2/JAFFE-CK/' + str(size) + ' REP/' + techs + '/' + "images_%s" % number, x_target)
 
-            
-#######################################################################################
 #CLASSIFICATION
 quant_representation_path = "./temp2/JAFFE-CK/"
 for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
@@ -201,16 +262,12 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
         data_dir_list = os.listdir(dir_repr)
         for repr in data_dir_list:
             dta = np.load(dir_repr + '/' + repr)
-            print(dta)
             data.append(dta)
             print(repr)
 
         #LOAD THE LABELS FILE
-        y_train_loaded = np.load('Y_train.npy').reshape(-1)
-        y_test_loaded = np.load('Y_test.npy').reshape(-1)
-
-        y_all_labels = np.load('all_labels.npy').reshape(-1)
-
+        y = np.load('y.npy')
+        y = y.reshape(-1)
 
         NC = 150
         LX = []
@@ -219,13 +276,13 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
             X = pca.fit(data[i]).transform(data[i])
             LX.append(X)
 
-        #base = SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced')
-        base = DecisionTreeClassifier(max_depth=10, class_weight='balanced')
+        base = SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced')
+        # base = DecisionTreeClassifier(max_depth=10, class_weight='balanced')
         #base = OneVsRestClassifier(SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced'))
 
-        #clf = BaggingClassifier(base_estimator=base, n_estimators=NE, max_samples=PB, random_state=42)
+        # clf = BaggingClassifier(base_estimator=base, n_estimators=NE, max_samples=PB, random_state=42)
         clf = RandomForestClassifier(n_estimators=NE, max_depth=10)
-        #clf = OneVsRestClassifier(SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced'))
+        # clf = OneVsRestClassifier(SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced'))
 
 
         for i in range(0, len(data)):
@@ -235,14 +292,11 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
         classifier_staked = LogisticRegression(solver='lbfgs', class_weight='balanced', C=0.1)
         classifier_staked_knora = LogisticRegression(solver='lbfgs', class_weight='balanced', C=0.1)
 
-        #for participant in os.listdir(os.path.join(labeled_path)):
-             #subjects.append(subject_index)
-             #for sequence in os.listdir(os.path.join(labeled_path, participant)):
-                 #if sequence != ".DS_Store":
-                     #subject_index += 1
-
-        for folder in glob.glob(f'{labeled_path}/**/**'):
-            subjects.append(len(glob.glob(f'{folder}/*.png')))
+        for participant in os.listdir(os.path.join(labeled_path)):
+            subjects.append(subject_index)
+            for sequence in os.listdir(os.path.join(labeled_path, participant)):
+                if sequence != ".DS_Store":
+                    subject_index += 1
 
         loso = np.zeros((len(data), len(subjects)))
         loso_results_soma = np.zeros((len(data), len(subjects)))
@@ -277,32 +331,25 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
             stack_train_knora = None
             stack_test_knora = None
 
-################ ARRUMAR AQUI #######################################
             for j in range(0, len(data)):
                 if i == len(subjects) - 1:
                     X_train.append(LX[j][0:subject])
-                    y_train.append(y_train_loaded[0:subject])
+                    y_train.append(y[0:subject])
                     X_test.append(LX[j][subject:])
-                    y_test.append(y_test_loaded[subject:])
+                    y_test.append(y[subject:])
                 else:
                     length = subjects[i + 1] - subjects[i]
                     X_train.append(np.vstack((LX[j][0:subject], LX[j][subject + length:])))
-                    y_train.append(np.hstack((y_train_loaded[0:subject], y_train_loaded[subject + length:])))
+                    y_train.append(np.hstack((y[0:subject], y[subject + length:])))
                     X_test.append(LX[j][subject:subject + length])
-                    y_test.append(y_test_loaded[subject:subject + length])
-###################################################################################
+                    y_test.append(y[subject:subject + length])
 
             for k in range(0, len(data)):
                 #DIVIDE A BASE DE TREINAMENTO (9 SUJEITOS) EM TREINAMENTO / VALIDAÇÃO PARA KU
                 X_train_cf, X_val, y_train_cf, y_val = train_test_split(X_train[k], y_train[k], test_size=0.2,
-                                                                         stratify=y_train[k], random_state=42)
+                                                                        stratify=y_train[k],
+                                                                        random_state=42)
                 print(f"\nInicio do loop: k = {k}")
-                #X_val = X_test[k]
-                #y_val = y_test[k]
-
-                #X_train_cf = X_train[k]
-                #y_train_cf = y_train[k]
-
                 print(
                     f"Shapes: X_train_cf = {X_train_cf.shape}, y_train_cf = {y_train_cf.shape}, X_val = {X_val.shape}, y_val = {y_val.shape}")
 
@@ -347,7 +394,7 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
             y_validacao.append(Lyval)
             base_treino.append(X_train)
             y_treino.append(y_train)
-            # predictproba.append(Lpb)
+            #predictproba.append(Lpb)
 
             soma = np.sum([Lpb], axis=1)
             soma = soma.reshape(soma.shape[1], soma.shape[2])
@@ -381,7 +428,7 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
                     cc = cc + 1
                 else:
                     ee = ee + 1
-            # print('Acurácia Soma KNORA: ', cc / (cc + ee))
+            print('Acurácia Soma KNORA: ', cc / (cc + ee))
             acc_soma_dinamic.append(cc / (cc + ee))
 
             prod = np.product([Lpb], axis=1)
@@ -398,7 +445,7 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
                     cc = cc + 1
                 else:
                     ee = ee + 1
-            # print('Acurácia Produto: ', cc / (cc + ee))
+            print('Acurácia Produto: ', cc / (cc + ee))
             acc_produto.append(cc / (cc + ee))
 
             prod_dinamic = np.product([Lpb_knora], axis=1)
@@ -415,7 +462,7 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
                     cc = cc + 1
                 else:
                     ee = ee + 1
-            # print('Acurácia Produto KNORA: ', cc / (cc + ee))
+            print('Acurácia Produto KNORA: ', cc / (cc + ee))
             acc_produto_dinamic.append(cc / (cc + ee))
 
             for m in range(0, len(data)):
@@ -441,7 +488,7 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
                     cc = cc + 1
                 else:
                     ee = ee + 1
-            # print('Acurácia STACKED: ', cc / (cc + ee))
+            print('Acurácia STACKED: ', cc / (cc + ee))
             acc_stacked.append(cc / (cc + ee))
 
             for m in range(0, len(data)):
@@ -469,10 +516,10 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
                     cc = cc + 1
                 else:
                     ee = ee + 1
-            # print('Acurácia STACKED KNORA: ', cc / (cc + ee))
+            print('Acurácia STACKED KNORA: ', cc / (cc + ee))
             acc_stacked_knora.append(cc / (cc + ee))
 
-            # print("======================================================")
+            print("======================================================")
 
         print("============RESULTADOS====================")
 
@@ -513,7 +560,7 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
                 concatena_y = result_teste
 
         c = confusion_matrix(concatena_y, concatena)
-        # print(c)
+        print(c)
 
         cc = 0
         ee = 0
@@ -538,7 +585,7 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
                 concatena_y = result_teste
 
         c = confusion_matrix(concatena_y, concatena)
-        # print(c)
+        print(c)
 
         cc = 0
         ee = 0
@@ -563,7 +610,7 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
                 concatena = result
                 concatena_y = result_teste
         c = confusion_matrix(concatena_y, concatena)
-        # print(c)
+        print(c)
 
         cc = 0
         ee = 0
