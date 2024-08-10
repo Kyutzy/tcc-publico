@@ -2,6 +2,7 @@ import numpy as np
 import os
 import cv2
 from sklearn.ensemble import RandomForestClassifier, BaggingClassifier
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
 from deslib.des import KNORAU
@@ -79,7 +80,7 @@ def create_sample(sample):
 
 
 
-train_x, train_y, test_x, test_y = load_labeled_database(labeled_path)
+#train_x, train_y, test_x, test_y = load_labeled_database(labeled_path)
 dataset_complete, dataset_splitted = split_train_test_by_number_of_autoencoders(10)
 
 label_and_image_train_stone = combine_images_and_labels(dataset_complete['kidney_train'][0], dataset_complete['kidney_train'][1])
@@ -87,8 +88,8 @@ label_and_image_train_normal = combine_images_and_labels(dataset_complete['norma
 label_and_image_test_stone = combine_images_and_labels(dataset_complete['kidney_test'][0], dataset_complete['kidney_test'][1])
 label_and_image_test_normal = combine_images_and_labels(dataset_complete['normal_test'][0], dataset_complete['normal_test'][1])
 
-train_x, train_y = create_sample(np.concatenate((label_and_image_train_normal, label_and_image_train_stone), axis=0))
-test_x, test_y = create_sample(np.concatenate((label_and_image_test_normal, label_and_image_test_stone), axis=0))
+#train_x, train_y = create_sample(np.concatenate((label_and_image_train_normal, label_and_image_train_stone), axis=0))
+#test_x, test_y = create_sample(np.concatenate((label_and_image_test_normal, label_and_image_test_stone), axis=0))
 
 
 
@@ -115,10 +116,6 @@ quant_representation_path = r"L:/cesar/temp_autoencoder/10 REP"
 
 arquivosJSON = glob.glob(quant_representation_path + "/*.json")
 arquivosH5 = glob.glob(quant_representation_path + "/*.h5")
-#reprs in os.listdir(quant_representation_path):
-    #for techs in os.listdir(os.path.join(quant_representation_path + reprs)):
-        #for qtd_reprs in os.listdir(os.path.join(quant_representation_path + reprs +'/'+ techs +'/')):
-            #size = int(len(os.listdir(os.path.join(quant_representation_path + reprs +'/'+ techs +'/'))) / 2)
 size = round(len(arquivosJSON))
 for index, arq in enumerate(arquivosJSON):
         for i in range(size):
@@ -159,7 +156,7 @@ for index, arq in enumerate(arquivosJSON):
             np.save('./temp2/JAFFE-CK/' + str(size) + ' REP/' + techs + '/' + "images_%s" % number, x_target)
 
             
-######################################################################################
+#######################################################################################
 #CLASSIFICATION
 quant_representation_path = "./temp2/JAFFE-CK/"
 for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
@@ -196,6 +193,7 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
         np.random.seed(42)
         data = []
 
+# TODO: Adaptar esse trecho para utilização de glob.
         #LOAD THE REPRESENTATIONS
         dir_repr = quant_representation_path + '/' + quant_reprs + '/' + techique_rep
         data_dir_list = os.listdir(dir_repr)
@@ -209,9 +207,6 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
         y_train_loaded = np.load('Y_train.npy').reshape(-1)
         y_test_loaded = np.load('Y_test.npy').reshape(-1)
 
-        y_all_labels = np.load('all_labels.npy').reshape(-1)
-
-
         NC = 150
         LX = []
         for i in range(0, len(data)):
@@ -219,15 +214,15 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
             X = pca.fit(data[i]).transform(data[i])
             LX.append(X)
 
-        #base = SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced')
-        base = DecisionTreeClassifier(max_depth=10, class_weight='balanced')
+        base = SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced')
+        #base = DecisionTreeClassifier(max_depth=10, class_weight='balanced')
         #base = OneVsRestClassifier(SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced'))
 
         #clf = BaggingClassifier(base_estimator=base, n_estimators=NE, max_samples=PB, random_state=42)
         clf = RandomForestClassifier(n_estimators=NE, max_depth=10)
         #clf = OneVsRestClassifier(SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced'))
 
-
+# TODO: USAR FOR IN LINE
         for i in range(0, len(data)):
             Lclf.append(clf)
 
@@ -304,7 +299,10 @@ for quant_reprs in os.listdir(os.path.join(quant_representation_path)):
                 #y_train_cf = y_train[k]
 
                 print(
-                    f"Shapes: X_train_cf = {X_train_cf.shape}, y_train_cf = {y_train_cf.shape}, X_val = {X_val.shape}, y_val = {y_val.shape}")
+                    f"""Shapes: X_train_cf = {X_train_cf.shape},
+                     y_train_cf = {y_train_cf.shape}, 
+                     X_val = {X_val.shape}, 
+                     y_val = {y_val.shape}""")
 
                 LXval.append(X_val)
                 Lyval.append(y_val)
