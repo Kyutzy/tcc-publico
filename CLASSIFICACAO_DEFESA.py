@@ -107,16 +107,18 @@ def gerar_representacoes_base_atraves_de_kyoto(representations_path, dados_trein
     size = round(len(arquivosJSON))
     criacao_pastas(caminho_resultado)
     for index, arq in enumerate(arquivosJSON):
-        modelo = carregar_modelo_do_json(arq)
-        modelo = carregar_pesos_no_modelo(modelo, arquivosH5[index])
-        camada_oculta = extracao_camada_oculta(modelo)
-        np.save(f'{caminho_resultado}/images_{index}', representacao_por_camada_oculta(camada_oculta, dados_treino))
+        for i in range(size):
+            modelo = carregar_modelo_do_json(arq)
+            modelo = carregar_pesos_no_modelo(modelo, arquivosH5[index])
+            camada_oculta = extracao_camada_oculta(modelo)
+            criacao_pastas(f'{caminho_resultado}{i}')
+            np.save(f'{caminho_resultado}{index}/images_{i}', representacao_por_camada_oculta(camada_oculta, dados_treino))
 
 def criacao_classificador():
     svm = SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced')
 
 def carregar_representacoes(path):
-    representacoes = glob.glob(f'{path}/*.npy')
+    representacoes = glob.glob(f'{path}/**/*.npy')
     for representacao in representacoes:
         yield np.load(representacao)
 
@@ -185,14 +187,14 @@ def main():
     np.save('Y_train.npy', train_y)
     np.save('Y_test.npy', test_y)
 
-    quant_representation_path = r"C:\Users\cesin\Desktop\tcc-novo\tcc-publico\temp_autoencoder\50 REP"
+    quant_representation_path = r"C:\Users\cesin\Desktop\tcc-novo\tcc-publico\temp_autoencoder\10 REP"
 
     # #LOAD THE GENERATED AUTOENCODERS AND DOES FEATURE BUILDING OF LABELED DATA
 
     arquivosJSON = glob.glob(quant_representation_path + "/*.json")
     arquivosH5 = glob.glob(quant_representation_path + "/*.h5")
     size = round(len(arquivosJSON))
-    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations")
+    #gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations/")
     representations = carregar_representacoes(r"./representations")
     labels = carrega_etiquetas('Y_train.npy')
     classifiers = [SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced') for _ in range(10)]

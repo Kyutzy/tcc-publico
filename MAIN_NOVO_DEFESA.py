@@ -52,5 +52,5 @@ if __name__ == '__main__':
     teste = Representations(trainx, testx)
 
 
-    teste.Generate_all(epochs = 3, seeds_rep = False, arch_rep=False, hidden_rep = True)
+    teste.Generate_all(epochs = 3, seeds_rep = True, arch_rep=False, hidden_rep = True)
 
