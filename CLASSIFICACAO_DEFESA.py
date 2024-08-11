@@ -21,7 +21,7 @@ import glob
 import random
 #pylint: skip-file
 
-labeled_path = r"C:\Users\cesin\Desktop\tcc-novo\tcc-publico\Dataset"
+labeled_path = r"L:\cesar\Dataset"
 size_input_data = [96, 96, 1]
 
 def load_yildirim(dir_path):
@@ -44,7 +44,6 @@ def load_yildirim(dir_path):
 def load_labeled_database(dir_path):
     train_x, train_y = load_yildirim(f"{dir_path}/Train")
     test_x, test_y = load_yildirim(f"{dir_path}/Test")
-
     return train_x, train_y, test_x, test_y
 
 def split_train_test_by_number_of_autoencoders(number_of_autoencoders):
@@ -74,7 +73,6 @@ def combine_images_and_labels(images, labels):
     return sample
 
 def create_sample(sample):
-    np.random.shuffle(sample)
     return list(zip(*sample))[0], list(zip(*sample))[1]
 
 def carregar_modelo_do_json(arquivo_json):
@@ -133,11 +131,12 @@ def treinar_classificador(representation, labels, classifier):
     classifier.fit(representation, labels)
     return classifier
 
-def predizer_classificacao(classifier, representation):
-    return classifier.predict(representation)
+# tem que ser o teste
+def predizer_classificacao(classifier, test_x):
+    return classifier.predict(test_x)
 
-def predizer_probabilidade(classifier, representation):
-    return classifier.predict_proba(representation)
+def predizer_probabilidade(classifier, test_x):
+    return classifier.predict_proba(test_x)
 
 def calcular_acuracia(predicoes, labels):
     cc = 0
@@ -157,18 +156,12 @@ def calcular_matriz_de_confusao(predicoes, labels):
 def calcular_acuracia_media(predicoes, labels):
     return np.mean([calcular_acuracia(predicao, label) for predicao, label in zip(predicoes, labels)])
 
+def calcular_acuracia_media(predicoes, test_y):
+    return np.mean([calcular_acuracia(predicao, test_y) for predicao in predicoes])
+
+
 def main():
     dataset_complete, dataset_splitted = split_train_test_by_number_of_autoencoders(10)
-
-    label_and_image_train_stone = combine_images_and_labels(dataset_complete['kidney_train'][0], dataset_complete['kidney_train'][1])
-    label_and_image_train_normal = combine_images_and_labels(dataset_complete['normal_train'][0], dataset_complete['normal_train'][1])
-    label_and_image_test_stone = combine_images_and_labels(dataset_complete['kidney_test'][0], dataset_complete['kidney_test'][1])
-    label_and_image_test_normal = combine_images_and_labels(dataset_complete['normal_test'][0], dataset_complete['normal_test'][1])
-
-    #train_x, train_y = create_sample(np.concatenate((label_and_image_train_normal, label_and_image_train_stone), axis=0))
-    #test_x, test_y = create_sample(np.concatenate((label_and_image_test_normal, label_and_image_test_stone), axis=0))
-
-
 
     train_x = np.concatenate((dataset_complete['kidney_train'][0], dataset_complete['normal_train'][0]), axis=0)
     train_y = np.concatenate((dataset_complete['kidney_train'][1], dataset_complete['normal_train'][1]), axis=0)
@@ -176,53 +169,52 @@ def main():
     test_x = np.concatenate((dataset_complete['kidney_test'][0], dataset_complete['normal_test'][0]), axis=0)
     test_y = np.concatenate((dataset_complete['kidney_test'][1], dataset_complete['normal_test'][1]), axis=0)
 
+    # Achatar as imagens de 96x96x1 para 9216 (96*96) para que possam ser usadas com classificadores tradicionais
+    train_x = train_x.reshape(train_x.shape[0], -1)
+    test_x = test_x.reshape(test_x.shape[0], -1)
+
     print(
         f"Shapes: train_x = {train_x.shape}, train_y = {train_y.shape}, test_x = {test_x.shape}, test_y = {test_y.shape}")
-
-    # # np.save('Y_train.npy', train_x)
-    # # np.save('Y_test.npy', test_y)
 
     np.save('all_labels', np.concatenate((train_y, test_y), axis=0))
 
     np.save('Y_train.npy', train_y)
     np.save('Y_test.npy', test_y)
 
-    quant_representation_path = r"C:\Users\cesin\Desktop\tcc-novo\tcc-publico\temp_autoencoder\10 REP"
-
-    # #LOAD THE GENERATED AUTOENCODERS AND DOES FEATURE BUILDING OF LABELED DATA
+    quant_representation_path = r"L:\cesar\temp_autoencoder\10 REP"
 
     arquivosJSON = glob.glob(quant_representation_path + "/*.json")
     arquivosH5 = glob.glob(quant_representation_path + "/*.h5")
     size = round(len(arquivosJSON))
-    #gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations/")
+
     representations = carregar_representacoes(r"./representations")
     labels = carrega_etiquetas('Y_train.npy')
+
+    # Inicializar e aplicar PCA
+    pca = PCA(n_components=150)
+    train_x_pca = pca.fit_transform(train_x)
+    test_x_pca = pca.transform(test_x)
+
     classifiers = [SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced') for _ in range(10)]
-    representations = [usar_PCA_na_representacao(representation) for representation in representations]
-    classifiers = [treinar_classificador(representation, labels, classifier) for representation, classifier in zip(representations, classifiers)]
-    predicoes = [predizer_classificacao(classifier, representation) for classifier, representation in zip(classifiers, representations)]
-    probabilidades = [predizer_probabilidade(classifier, representation) for classifier, representation in zip(classifiers, representations)]
-    acuracias = [calcular_acuracia(predicao, labels) for predicao in predicoes]
-    matrizes_de_confusao = [calcular_matriz_de_confusao(predicao, labels) for predicao in predicoes]
-    acuracia_media = calcular_acuracia_media(predicoes, labels)
+    classifiers = [treinar_classificador(train_x_pca, labels, classifier) for classifier in classifiers]
+
+    predicoes = [predizer_classificacao(classifier, test_x_pca) for classifier in classifiers]
+    probabilidades = [predizer_probabilidade(classifier, test_x_pca) for classifier in classifiers]
+
+    acuracias = [calcular_acuracia(predicao, test_y) for predicao in predicoes]
+    matrizes_de_confusao = [calcular_matriz_de_confusao(predicao, test_y) for predicao in predicoes]
+    acuracia_media = calcular_acuracia_media(predicoes, test_y)
+
     print(acuracias)
     print(matrizes_de_confusao)
     print(acuracia_media)
+
 
 if __name__ == '__main__':
     main()
 
 
-
-
-
-
-
-
-
-
-
-            
+# TODO: ARRUMAR O TREINO E ADICIONAR O VOTO MAJORITARIO
 # #######################################################################################
 # #CLASSIFICATION
 # quant_representation_path = "./temp2/JAFFE-CK/"
