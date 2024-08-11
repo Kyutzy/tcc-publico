@@ -21,7 +21,7 @@ import glob
 import random
 #pylint: skip-file
 
-labeled_path = r"L:\cesar\Dataset"
+labeled_path = r"D:\Documentos\VSCode\tcc-publico\Dataset"
 size_input_data = [96, 96, 1]
 
 def load_yildirim(dir_path):
@@ -93,6 +93,7 @@ def extracao_camada_oculta(modelo):
     return tf.keras.models.Sequential(modelo.layers[:k])
 
 def representacao_por_camada_oculta(modelo, dados):
+    # print(dados)
     return modelo.predict(dados)
 
 def criacao_pastas(path):
@@ -101,6 +102,7 @@ def criacao_pastas(path):
 
 def gerar_representacoes_base_atraves_de_kyoto(representations_path, dados_treino, caminho_resultado):
     arquivosJSON = glob.glob(representations_path + "/*.json")
+    print(arquivosJSON)
     arquivosH5 = glob.glob(representations_path + "/*.h5")
     size = round(len(arquivosJSON))
     criacao_pastas(caminho_resultado)
@@ -170,7 +172,8 @@ def main():
     test_y = np.concatenate((dataset_complete['kidney_test'][1], dataset_complete['normal_test'][1]), axis=0)
 
     # Achatar as imagens de 96x96x1 para 9216 (96*96) para que possam ser usadas com classificadores tradicionais
-    train_x = train_x.reshape(train_x.shape[0], -1)
+    
+    ### train_x = train_x.reshape(train_x.shape[0], -1)
     test_x = test_x.reshape(test_x.shape[0], -1)
 
     print(
@@ -181,22 +184,25 @@ def main():
     np.save('Y_train.npy', train_y)
     np.save('Y_test.npy', test_y)
 
-    quant_representation_path = r"L:\cesar\temp_autoencoder\10 REP"
+    quant_representation_path = r"D:\Documentos\VSCode\tcc-publico\temp_autoencoder\10 REP"
 
     arquivosJSON = glob.glob(quant_representation_path + "/*.json")
     arquivosH5 = glob.glob(quant_representation_path + "/*.h5")
     size = round(len(arquivosJSON))
+
+    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations/")
 
     representations = carregar_representacoes(r"./representations")
     labels = carrega_etiquetas('Y_train.npy')
 
     # Inicializar e aplicar PCA
     pca = PCA(n_components=150)
-    train_x_pca = pca.fit_transform(train_x)
-    test_x_pca = pca.transform(test_x)
+    ### train_x_pca = pca.fit_transform(train_x)
+    test_x_pca = pca.fit_transform(test_x)
 
     classifiers = [SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced') for _ in range(10)]
-    classifiers = [treinar_classificador(train_x_pca, labels, classifier) for classifier in classifiers]
+    representations = [usar_PCA_na_representacao(representation) for representation in representations]
+    classifiers = [treinar_classificador(representation, labels, classifier) for representation, classifier in zip(representations, classifiers)]
 
     predicoes = [predizer_classificacao(classifier, test_x_pca) for classifier in classifiers]
     probabilidades = [predizer_probabilidade(classifier, test_x_pca) for classifier in classifiers]
