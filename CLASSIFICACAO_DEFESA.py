@@ -21,7 +21,7 @@ import glob
 import random
 #pylint: skip-file
 
-labeled_path = r"D:\Documentos\VSCode\tcc-publico\Dataset"
+labeled_path = r"L:\cesar\Dataset"
 size_input_data = [96, 96, 1]
 
 def load_yildirim(dir_path):
@@ -102,7 +102,7 @@ def criacao_pastas(path):
 
 def gerar_representacoes_base_atraves_de_kyoto(representations_path, dados_treino, caminho_resultado):
     arquivosJSON = glob.glob(representations_path + "/*.json")
-    print(arquivosJSON)
+    # print(arquivosJSON)
     arquivosH5 = glob.glob(representations_path + "/*.h5")
     size = round(len(arquivosJSON))
     criacao_pastas(caminho_resultado)
@@ -171,9 +171,17 @@ def main():
     test_x = np.concatenate((dataset_complete['kidney_test'][0], dataset_complete['normal_test'][0]), axis=0)
     test_y = np.concatenate((dataset_complete['kidney_test'][1], dataset_complete['normal_test'][1]), axis=0)
 
+    # Ver as classes e suas quantidades no conjunto de treinamento
+    classes_treino, counts_treino = np.unique(train_y, return_counts=True)
+    print(f"Classes de treino: {classes_treino}")
+    print(f"Quantidade de amostras em cada classe de treino: {counts_treino}")
+
+    # Ver as classes e suas quantidades no conjunto de teste
+    classes_teste, counts_teste = np.unique(test_y, return_counts=True)
+    print(f"Classes de teste: {classes_teste}")
+    print(f"Quantidade de amostras em cada classe de teste: {counts_teste}")
+
     # Achatar as imagens de 96x96x1 para 9216 (96*96) para que possam ser usadas com classificadores tradicionais
-    
-    ### train_x = train_x.reshape(train_x.shape[0], -1)
     test_x = test_x.reshape(test_x.shape[0], -1)
 
     print(
@@ -184,7 +192,7 @@ def main():
     np.save('Y_train.npy', train_y)
     np.save('Y_test.npy', test_y)
 
-    quant_representation_path = r"D:\Documentos\VSCode\tcc-publico\temp_autoencoder\10 REP"
+    quant_representation_path = r"L:\cesar\temp_autoencoder\10 REP"
 
     arquivosJSON = glob.glob(quant_representation_path + "/*.json")
     arquivosH5 = glob.glob(quant_representation_path + "/*.h5")
@@ -197,15 +205,20 @@ def main():
 
     # Inicializar e aplicar PCA
     pca = PCA(n_components=150)
-    ### train_x_pca = pca.fit_transform(train_x)
     test_x_pca = pca.fit_transform(test_x)
 
-    classifiers = [SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced') for _ in range(10)]
+    classifiers = [SVC(C=1.0, kernel="poly", probability=False, class_weight=None, random_state=42) for _ in range(10)]
+    # classifiers = [RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42) for _ in range(10)]
+
     representations = [usar_PCA_na_representacao(representation) for representation in representations]
     classifiers = [treinar_classificador(representation, labels, classifier) for representation, classifier in zip(representations, classifiers)]
 
     predicoes = [predizer_classificacao(classifier, test_x_pca) for classifier in classifiers]
-    probabilidades = [predizer_probabilidade(classifier, test_x_pca) for classifier in classifiers]
+    #probabilidades = [predizer_probabilidade(classifier, test_x_pca) for classifier in classifiers]
+
+    # Ver as classes previstas pelos classificadores
+    for i, classifier in enumerate(classifiers):
+        print(f"Classes previstas pelo classificador {i + 1}: {classifier.classes_}")
 
     acuracias = [calcular_acuracia(predicao, test_y) for predicao in predicoes]
     matrizes_de_confusao = [calcular_matriz_de_confusao(predicao, test_y) for predicao in predicoes]
