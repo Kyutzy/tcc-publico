@@ -11,7 +11,7 @@ from scipy.stats import mode
 
 # pylint: skip-file
 
-labeled_path = r"L:\cesar\Dataset"
+labeled_path = r"L:\TCC\Dataset"
 size_input_data = [96, 96, 1]
 
 
@@ -75,6 +75,7 @@ def carregar_modelo_do_json(arquivo_json):
     with open(arquivo_json, 'r') as json_file:
         loaded_model_json = json_file.read()
         loaded_model = tf.keras.models.model_from_json(loaded_model_json)
+        print(loaded_model.summary())
         return loaded_model
 
 
@@ -93,6 +94,7 @@ def extracao_camada_oculta(modelo):
 
 def representacao_por_camada_oculta(modelo, dados):
     # print(dados)
+
     return modelo.predict(dados)
 
 
@@ -101,9 +103,9 @@ def criacao_pastas(path):
         os.makedirs(path)
 
 
-def gerar_representacoes_base_atraves_de_kyoto(representations_path, dados_treino, caminho_resultado):
+def gerar_representacoes_base_atraves_de_kyoto(representations_path, dados, caminho_resultado):
     arquivosJSON = glob.glob(representations_path + "/*.json")
-    # print(arquivosJSON)
+    #print(arquivosJSON)
     arquivosH5 = glob.glob(representations_path + "/*.h5")
     size = round(len(arquivosJSON))
     criacao_pastas(caminho_resultado)
@@ -114,7 +116,7 @@ def gerar_representacoes_base_atraves_de_kyoto(representations_path, dados_trein
             camada_oculta = extracao_camada_oculta(modelo)
             criacao_pastas(f'{caminho_resultado}{i}')
             np.save(f'{caminho_resultado}{index}/images_{i}',
-                    representacao_por_camada_oculta(camada_oculta, dados_treino))
+                    representacao_por_camada_oculta(camada_oculta, dados))
 
 
 def criacao_classificador():
@@ -221,9 +223,6 @@ def main():
     print(f"Classes de teste: {classes_teste}")
     print(f"Quantidade de amostras em cada classe de teste: {counts_teste}")
 
-    # Achatar as imagens de 96x96x1 para 9216 (96*96) para que possam ser usadas com classificadores tradicionais
-    test_x = test_x.reshape(test_x.shape[0], -1)
-
     print(
         f"Shapes: train_x = {train_x.shape},"
         f" train_y = {train_y.shape}, "
@@ -234,30 +233,31 @@ def main():
     np.save('Y_train.npy', train_y)
     np.save('Y_test.npy', test_y)
 
-    quant_representation_path = r"L:\cesar\temp_autoencoder\10 REP"
+    quant_representation_path = r"L:\TCC\temp_autoencoder\10 REP"
 
     arquivosJSON = glob.glob(quant_representation_path + "/*.json")
     arquivosH5 = glob.glob(quant_representation_path + "/*.h5")
     size = round(len(arquivosJSON))
 
-    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations/")
+    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train/")
+    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
 
-    representations = carregar_representacoes(r"./representations")
-    labels = carrega_etiquetas('Y_train.npy')
-
-    # Inicializar e aplicar PCA
-    pca = PCA(n_components=150)
-    test_x_pca = pca.fit_transform(test_x)
+    representations_train = carregar_representacoes(r"./representations_train/")
+    representations_test = carregar_representacoes(r"./representations_test/")
+    labels_train = carrega_etiquetas('Y_train.npy')
+    labels_test = carrega_etiquetas('Y_test.npy')
 
     classifiers = [SVC(C=1.0, kernel="poly", probability=False, class_weight=None, random_state=42) for _ in range(10)]
     # classifiers = [RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42) for _ in range(10)]
 
-    representations = [usar_PCA_na_representacao(representation) for representation in representations]
-    classifiers = [treinar_classificador(representation, labels, classifier) for representation, classifier in
-                   zip(representations, classifiers)]
+    representations_train = [usar_PCA_na_representacao(representation) for representation in representations_train]
+    representations_test = [usar_PCA_na_representacao(representation) for representation in representations_test]
+    classifiers = [treinar_classificador(representation, labels_train, classifier) for representation, classifier in
+                   zip(representations_train, classifiers)]
 
-    predicoes = [predizer_classificacao(classifier, test_x_pca) for classifier in classifiers]
-    # probabilidades = [predizer_probabilidade(classifier, test_x_pca) for classifier in classifiers]
+    predicoes = [predizer_classificacao(classifier, representation) for representation, classifier in
+                 zip(representations_test, classifiers)]
+    # probabilidades = [predizer_probabilidade(classifier, representations_test) for classifier in classifiers]
 
     # Ver as classes previstas pelos classificadores
     for i, classifier in enumerate(classifiers):
@@ -271,8 +271,8 @@ def main():
     predicao_final = voto_majoritario(predicoes)
 
     # Calcula a acurácia final após a votação majoritária
-    acuracia_final = calcular_acuracia(predicao_final, test_y)
-    matriz_de_confusao_final = calcular_matriz_de_confusao(predicao_final, test_y)
+    acuracia_final = calcular_acuracia(predicao_final, labels_test)
+    matriz_de_confusao_final = calcular_matriz_de_confusao(predicao_final, labels_test)
 
     print(f"Acurácia final: {acuracia_final}")
     print(f"Matriz de confusão final:\n{matriz_de_confusao_final}")
