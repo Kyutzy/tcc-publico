@@ -49,7 +49,3 @@ Este repositório contém um código para a classificação de imagens de pedras
 - **Pylint Directives**:
   - `# pylint: disable=line-too-long,unused-import,unused-variable,no-member,too-many-locals,invalid-name`
   - Essas diretivas foram adicionadas para desativar certas verificações do Pylint, garantindo que o código seja analisado sem alertas irrelevantes.
-
-## Contribuições
-
-Contribuições são bem-vindas. Por favor, abra um *pull request* ou *issue* para discussões sobre melhorias ou correções.
