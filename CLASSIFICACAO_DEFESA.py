@@ -5,13 +5,18 @@ Arquivo para classificação de imagens de pedras nos rins e imagens normais.
 import os
 from typing import Union
 import glob
+
 import numpy as np
+
 import cv2
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
+
 import tensorflow as tf
+
 from scipy.stats import mode
 
 
