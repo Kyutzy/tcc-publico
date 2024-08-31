@@ -1,7 +1,3 @@
-Aqui está um exemplo de um README para o código fornecido:
-
----
-
 # Classificação de Imagens de Pedras nos Rins e Imagens Normais
 
 Este repositório contém um código para a classificação de imagens de pedras nos rins e imagens normais usando técnicas de aprendizado de máquina e redes neurais. O código utiliza autoencoders para extração de características e, posteriormente, aplica classificadores como RandomForest ou SVM para a predição.
