@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import os
 
-unlabeled_path = './teste/'
+unlabeled_path = './kyoto/'
 
 
 def load_unlabeled_database(dir_path):

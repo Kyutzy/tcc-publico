@@ -1,21 +1,34 @@
-import numpy as np
+"""
+Arquivo para classificação de imagens de pedras nos rins e imagens normais.
+"""
+# pylint: disable=line-too-long,unused-import,unused-variable,no-member,too-many-locals,invalid-name
 import os
+from typing import Union
+import glob
+import numpy as np
 import cv2
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
-import tensorflow as tf
 from sklearn.decomposition import PCA
-import glob
+import tensorflow as tf
 from scipy.stats import mode
 
-# pylint: skip-file
 
-labeled_path = r"L:\TCC\Dataset"
-size_input_data = [96, 96, 1]
+LABELED_PATH = r"L:\cesar\Dataset"
 
 
-def load_yildirim(dir_path):
+def load_yildirim(dir_path: str) -> Union[np.array, np.array]:
+    """
+    Carrega as imagens da base de dados do Yildirim.
+
+    Args:
+        dir_path (str): Caminho onde estão as imagens e as labels.
+
+    Returns:
+        Union[np.array, np.array]: retorna uma tupla onde o primeiro elemento é um array com as imagens e o segundo
+        é um array com as labels.
+    """
     images = []
     size_input_data = [96, 96, 1]
     image_files = glob.glob(f"{dir_path}/*.png", recursive=True)
@@ -33,18 +46,37 @@ def load_yildirim(dir_path):
     return loaded_images, labels
 
 
-def load_labeled_database(dir_path):
+def load_labeled_database(dir_path: str) -> Union[np.array, np.array, np.array, np.array]:
+    """
+    Faz o cerregamento das bases de dados de treino e teste.
+
+    Args:
+        dir_path (str): Caminho onde estão as imagens e as labels.
+
+    Returns:
+        Union[np.array, np.array, np.array, np.array]: Retorna uma tupla com os dados de treino e teste
+    """
+
     train_x, train_y = load_yildirim(f"{dir_path}/Train")
     test_x, test_y = load_yildirim(f"{dir_path}/Test")
     return train_x, train_y, test_x, test_y
 
 
-def split_train_test_by_number_of_autoencoders(number_of_autoencoders):
+def split_train_test_by_number_of_autoencoders(number_of_autoencoders: int) -> Union[dict, dict]:
+    """
+    Faz a separação da base de dados para cada autoencoder utilizar corretamente
+
+    Args:
+        number_of_autoencoders (int): a quantidade de autoencoders que serão utilizados
+
+    Returns:
+        Union[dict, dict]: Retorna um dicionário com os dados completos e um dicionário com os dados separados
+    """
     all_types_of_files = {
-        'kidney_train': load_yildirim(f'{labeled_path}/Train/Kidney_stone'),
-        'kidney_test': load_yildirim(f'{labeled_path}/Test/Kidney_stone'),
-        'normal_train': load_yildirim(f'{labeled_path}/Train/Normal'),
-        'normal_test': load_yildirim(f'{labeled_path}/Test/Normal')
+        'kidney_train': load_yildirim(f'{LABELED_PATH}/Train/Kidney_stone'),
+        'kidney_test': load_yildirim(f'{LABELED_PATH}/Test/Kidney_stone'),
+        'normal_train': load_yildirim(f'{LABELED_PATH}/Train/Normal'),
+        'normal_test': load_yildirim(f'{LABELED_PATH}/Test/Normal')
     }
 
     all_types_of_files_splitted = {
@@ -54,37 +86,83 @@ def split_train_test_by_number_of_autoencoders(number_of_autoencoders):
         'normal_test': [[], []]
     }
 
-    for key in all_types_of_files:
-        amount_of_samples = len(all_types_of_files[key][0])
+    for key, values in all_types_of_files.items():
+        amount_of_samples = len(values[0])
         desired_amount_of_samples = amount_of_samples // number_of_autoencoders
-        all_types_of_files_splitted[key][0] = np.array_split(all_types_of_files[key][0], desired_amount_of_samples)
-        all_types_of_files_splitted[key][1] = np.array_split(all_types_of_files[key][1], desired_amount_of_samples)
+        all_types_of_files_splitted[key][0] = np.array_split(values[0], desired_amount_of_samples)
+        all_types_of_files_splitted[key][1] = np.array_split(values[1], desired_amount_of_samples)
     return all_types_of_files, all_types_of_files_splitted
 
 
-def combine_images_and_labels(images, labels):
+def combine_images_and_labels(images: np.ndarray, labels: np.ndarray) -> list:
+    """
+    Combina as imagens e as labels em uma lista.
+
+    Args:
+        images (np.ndarray): ndarray com as imagens
+        labels (np.ndarray): ndarray com as labels
+
+    Returns:
+        list: Retorna uma lista de tuplas com o par imagem e label
+    """
     sample = list(zip(images, labels))
     return sample
 
 
-def create_sample(sample):
+def create_sample(sample: list) -> tuple:
+    """Separa o par imagem e label em duas listas diferentes.
+
+    Args:
+        sample (list): lista com par imagem e label
+
+    Returns:
+        tuple: Retorna uma tupla com duas listas, a primeira contendo as imagens e a segunda contendo as labels
+    """
+
     return list(zip(*sample))[0], list(zip(*sample))[1]
 
 
-def carregar_modelo_do_json(arquivo_json):
-    with open(arquivo_json, 'r') as json_file:
+def carregar_modelo_do_json(arquivo_json: str) -> tf.keras.models.Model:
+    """Realiza o corregamento do modelo a partir de um arquivo json.
+
+    Args:
+        arquivo_json (str): caminho do arquivo json
+
+    Returns:
+        tf.keras.models.Model: Retorna o modelo carregado a partir do arquivo json com a base kyoto
+    """
+    with open(arquivo_json, 'r', encoding='utf-8') as json_file:
         loaded_model_json = json_file.read()
         loaded_model = tf.keras.models.model_from_json(loaded_model_json)
-        print(loaded_model.summary())
         return loaded_model
 
 
-def carregar_pesos_no_modelo(modelo, nome: int):
+def carregar_pesos_no_modelo(modelo: tf.keras.models.Model, nome: int) -> tf.keras.models.Model:
+    """
+    Carrega os pesos no modelo.
+
+    Args:
+        modelo (tf.keras.models.Model): modelo carregado a partir do arquivo json
+        nome (int): peso a carregar no modelo
+
+    Returns:
+        tf.keras.models.Model: Retorna o modelo com os pesos carregados
+    """
     modelo.load_weights(f"{nome}")
     return modelo
 
 
-def extracao_camada_oculta(modelo):
+def extracao_camada_oculta(modelo: tf.keras.models.Model) -> tf.keras.models.Sequential:
+    """
+    Extrai a camada oculta do modelo, descartando a camada de decode do autoencoder.
+
+    Args:
+        modelo (tf.keras.models.Model): modelo carregado a partir do arquivo json
+
+    Returns:
+        tf.keras.models.Sequential: retorna toda a camada input e a camada oculta do modelo
+                                    retirando a camada de decode
+    """
     k = 0
     for index, layer in enumerate(modelo.layers):
         if layer.name == 'hidden_layer':
@@ -92,70 +170,153 @@ def extracao_camada_oculta(modelo):
     return tf.keras.models.Sequential(modelo.layers[:k])
 
 
-def representacao_por_camada_oculta(modelo, dados):
-    # print(dados)
+def representacao_por_camada_oculta(modelo: tf.keras.models.Sequential, dados: np.ndarray) -> np.ndarray:
+    """
+    Gera a representação do modelo utilizando as camadas de input e camada oculta para possuir um vetor latente.
 
+    Args:
+        modelo (tf.keras.models.Sequential): modelo com as camadas de input e camada oculta
+        dados (np.ndarray): dados de treino
+
+    Returns:
+        np.ndarray: retorna a representação do modelo
+    """
+    # print(dados)
     return modelo.predict(dados)
 
 
-def criacao_pastas(path):
+def criacao_pastas(path: str) -> None:
+    """
+    Cria as pastas caso elas não existam.
+
+    Args:
+        path (str): caminho para criar a pasta
+    """
     if not os.path.exists(path):
         os.makedirs(path)
 
 
-def gerar_representacoes_base_atraves_de_kyoto(representations_path, dados, caminho_resultado):
-    arquivosJSON = glob.glob(representations_path + "/*.json")
-    #print(arquivosJSON)
-    arquivosH5 = glob.glob(representations_path + "/*.h5")
-    size = round(len(arquivosJSON))
+def gerar_representacoes_base_atraves_de_kyoto(representations_path: str, dados: np.ndarray, caminho_resultado: str) -> None:
+    """Realiza a geração das representações utilizando a base
+
+    Args:
+        representations_path (str): caminho com as representações dos autoencoders
+        dados (np.ndarray): dados para gerar as representações das imagens que serão utilizadas
+        caminho_resultado (str): caminho onde serão salvas as representações geradas
+    """
+    arquivos_json = glob.glob(representations_path + "/*.json")
+    # print(arquivosJSON)
+    arquivos_h5 = glob.glob(representations_path + "/*.h5")
+    size = round(len(arquivos_json))
     criacao_pastas(caminho_resultado)
-    for index, arq in enumerate(arquivosJSON):
+    for index, arq in enumerate(arquivos_json):
         for i in range(size):
             modelo = carregar_modelo_do_json(arq)
-            modelo = carregar_pesos_no_modelo(modelo, arquivosH5[index])
+            modelo = carregar_pesos_no_modelo(modelo, arquivos_h5[index])
             camada_oculta = extracao_camada_oculta(modelo)
             criacao_pastas(f'{caminho_resultado}{i}')
             np.save(f'{caminho_resultado}{index}/images_{i}',
                     representacao_por_camada_oculta(camada_oculta, dados))
 
 
-def criacao_classificador():
-    svm = SVC(C=1e-6, kernel="linear", probability=True, class_weight='balanced')
+def carregar_representacoes(path: str) -> np.array:
+    """Carrega as representações geradas anteriormente para uso nesta sessão
 
+    Args:
+        path (str): caminho onde estão as representações
 
-def carregar_representacoes(path):
+    Returns:
+        np.array: representações carregadas
+
+    Yields:
+        Iterator[np.array]: cada representação carregadas
+    """
     representacoes = glob.glob(f'{path}/**/*.npy')
     for representacao in representacoes:
         yield np.load(representacao)
 
 
-def carrega_etiquetas(path):
+def carrega_etiquetas(path: str) -> np.array:
+    """Carrega as etiquetas de um arquivo npy
+
+    Args:
+        path (str): caminho do arquivo npy
+
+    Returns:
+        np.array: etiquetas carregadas
+    """
     return np.load(path)
 
 
-def usar_PCA_na_representacao(representation, n_components=150) -> np.array:
+def usar_pca_na_representacao(representation: np.array, n_components: int = 150) -> np.array:
+    """Realiza a redução de dimensionalidade utilizando o PCA
+
+    Args:
+        representation (np.array): representação a ser reduzida
+        n_components (int, optional): quantidade de componentes. padrão é 150.
+
+    Returns:
+        np.array: retorna a representação reduzida
+    """
     pca = PCA(n_components=n_components)
     return pca.fit(representation).transform(representation)
 
 
-def treinar_classificador(representation, labels, classifier):
+def treinar_classificador(representation: np.array, labels: np.array, classifier: RandomForestClassifier | SVC) -> RandomForestClassifier | SVC:
+    """Treina o classificador
+
+    Args:
+        representation (np.array): representação para treinar o classificador
+        labels (np.array): etiquetas com a classe de cada representação
+        classifier (RandomForestClassifier|SVC): classificador a ser treinado
+
+    Returns:
+        RandomForestClassifier | SVC: retorna o classificador treinado
+    """
     classifier.fit(representation, labels)
     return classifier
 
 
-def predizer_classificacao(classifier, test_x):
+def predizer_classificacao(classifier: RandomForestClassifier | SVC, test_x: np.array) -> np.array:
+    """Realiza a predição da classificação
+
+    Args:
+        classifier (RandomForestClassifier | SVC): classificador treinado
+        test_x (np.array): dados de teste
+
+    Returns:
+        np.array: retorna os resultados das predições
+    """
     return classifier.predict(test_x)
 
 
-def predizer_probabilidade(classifier, test_x):
+def predizer_probabilidade(classifier: RandomForestClassifier | SVC, test_x: np.array) -> np.array:
+    """Realiza a predição da probabilidade
+
+    Args:
+        classifier (RandomForestClassifier | SVC): classificador treinado
+        test_x (np.array): dados de teste
+
+    Returns:
+        np.array: retorna as probabilidades das predições
+    """
     return classifier.predict_proba(test_x)
 
 
-def calcular_acuracia(predicoes, labels):
+def calcular_acuracia(predicoes: np.array, labels: np.array) -> float:
+    """Calcula a acurácia
+
+    Args:
+        predicoes (np.array): predições do classificador
+        labels (np.array): rótulos reais
+
+    Returns:
+        float: retorna a acurácia
+    """
     certo = 0
     errado = 0
-    for i in range(0, len(predicoes)):
-        predicao = predicoes[i]
+    for i, v in enumerate(predicoes):
+        predicao = v
         label = labels[i]
         if predicao == label:
             certo = certo + 1
@@ -164,24 +325,40 @@ def calcular_acuracia(predicoes, labels):
     return certo / (certo + errado)
 
 
-def calcular_matriz_de_confusao(predicoes, labels):
+def calcular_matriz_de_confusao(predicoes: np.array, labels: np.array) -> np.ndarray:
+    """Calcula a matriz de confusão
+
+    Args:
+        predicoes (np.array): predições do classificador
+        labels (np.array): rótulos reais
+
+    Returns:
+        np.ndarray: retorna a matriz de confusão
+    """
     return confusion_matrix(labels, predicoes)
 
 
-def calcular_acuracia_media(predicoes, labels):
+def calcular_acuracia_media(predicoes: np.array, labels: np.array) -> float:
+    """Calcula a acurácia média
+
+    Args:
+        predicoes (np.array): predições do classificador
+        labels (np.array): rótulos reais
+
+    Returns:
+        float: retorna a acurácia média
+    """
     return np.mean([calcular_acuracia(predicao, label) for predicao, label in zip(predicoes, labels)])
 
 
-def calcular_acuracia_media(predicoes, test_y):
-    return np.mean([calcular_acuracia(predicao, test_y) for predicao in predicoes])
+def voto_majoritario(predicoes: np.array) -> np.array:
+    """Realiza a votação majoritária
 
+    Args:
+        predicoes (np.array): predições do classificador
 
-def voto_majoritario(predicoes):
-    """
-    Realiza a votação majoritária entre as previsões de diferentes classificadores.
-
-    :param predicoes: Uma lista de arrays, onde cada array contém as previsões de um classificador.
-    :return: Um array contendo as previsões finais após a votação majoritária.
+    Returns:
+        np.array: retorna as predições após a votação majoritária
     """
     # Criar mapeamento de classes para inteiros
     classes_unicas = np.unique(predicoes)
@@ -205,7 +382,10 @@ def voto_majoritario(predicoes):
 
 
 def main():
-    dataset_complete, dataset_splitted = split_train_test_by_number_of_autoencoders(10)
+    """
+    função main do código
+    """
+    dataset_complete, _ = split_train_test_by_number_of_autoencoders(10)
 
     train_x = np.concatenate((dataset_complete['kidney_train'][0], dataset_complete['normal_train'][0]), axis=0)
     train_y = np.concatenate((dataset_complete['kidney_train'][1], dataset_complete['normal_train'][1]), axis=0)
@@ -235,10 +415,6 @@ def main():
 
     quant_representation_path = r"L:\TCC\temp_autoencoder\10 REP"
 
-    arquivosJSON = glob.glob(quant_representation_path + "/*.json")
-    arquivosH5 = glob.glob(quant_representation_path + "/*.h5")
-    size = round(len(arquivosJSON))
-
     gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train/")
     gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
 
@@ -250,8 +426,8 @@ def main():
     classifiers = [SVC(C=1.0, kernel="poly", probability=False, class_weight=None, random_state=42) for _ in range(10)]
     # classifiers = [RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42) for _ in range(10)]
 
-    representations_train = [usar_PCA_na_representacao(representation) for representation in representations_train]
-    representations_test = [usar_PCA_na_representacao(representation) for representation in representations_test]
+    representations_train = [usar_pca_na_representacao(representation) for representation in representations_train]
+    representations_test = [usar_pca_na_representacao(representation) for representation in representations_test]
     classifiers = [treinar_classificador(representation, labels_train, classifier) for representation, classifier in
                    zip(representations_train, classifiers)]
 
