@@ -1,10 +1,11 @@
 from GENERATE_REPRESENTATIONS_DEFESA import Representations
+import CLASSIFICACAO_DEFESA
 import cv2
 import numpy as np
 import os
 
+unlabeled_path = './bases-tcc/kyoto/'
 
-unlabeled_path = './kyoto/'
 
 def load_unlabeled_database(dir_path):
     size_input_data = [96, 96, 1]
@@ -34,12 +35,11 @@ def load_unlabeled_database(dir_path):
 
     return trainX, testX
 
+
 if __name__ == '__main__':
     # carregar base nao rotulada
     trainx, testx = load_unlabeled_database(unlabeled_path)
-
     teste = Representations(trainx, testx)
-
-
-    teste.Generate_all(epochs = 10, seeds_rep = True, arch_rep=False, hidden_rep = True)
+    teste.Generate_all(epochs=3, seeds_rep=True, arch_rep=False, hidden_rep=True, number_of_repr=5)
+    CLASSIFICACAO_DEFESA.main(5)
 

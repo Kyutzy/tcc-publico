@@ -4,7 +4,6 @@ temp
 CKold
 jaffe
 kyoto
-temp_autoencoder
 bkp
 shape_predictor_68_face_landmarks.dat
 Dataset
@@ -14,3 +13,4 @@ y.npy
 haarcascade_frontalface_alt2.xml
 *.npy
 *.ipynb
+venv
