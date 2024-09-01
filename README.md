@@ -123,8 +123,6 @@ python MAIN_NOVO_DEFESA.py
 
 ## Contato
 
-## Contato
-
 Para quaisquer dúvidas ou contribuições, sinta-se à vontade para abrir uma issue ou entrar em contato:
 
 - **[Lukas Jacon Barboza](mailto:lukas.barboza@pucpr.edu.br)**
