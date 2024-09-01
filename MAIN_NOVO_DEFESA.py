@@ -1,9 +1,35 @@
 from GENERATE_REPRESENTATIONS_DEFESA import Representations
+import CLASSIFICACAO_DEFESA
 import cv2
 import numpy as np
 import os
+import requests
+import zipfile
+import io
+import os
 
 unlabeled_path = './kyoto/'
+
+def download_github_repo(repo_url, output_dir):
+    # Converter a URL do repositório em uma URL para baixar o ZIP
+    if repo_url.endswith('/'):
+        repo_url = repo_url[:-1]
+    repo_zip_url = repo_url + '/archive/refs/heads/main.zip'  # Altere 'main' para a branch desejada
+
+    # Fazer o download do ZIP
+    r = requests.get(repo_zip_url)
+    if r.status_code == 200:
+        # Descompactar o ZIP em memória
+        with zipfile.ZipFile(io.BytesIO(r.content)) as zip_ref:
+            zip_ref.extractall(output_dir)
+        print(f'Repositório baixado e extraído em: {output_dir}')
+    else:
+        print(f'Falha ao baixar o repositório. Status code: {r.status_code}')
+
+# Exemplo de uso
+repo_url = 'https://github.com/Kyutzy/bases-tcc'
+output_dir = './Kidney_stone_detection'  # Diretório de saída para o conteúdo descompactado
+download_github_repo(repo_url, output_dir)
 
 
 def load_unlabeled_database(dir_path):
@@ -40,4 +66,5 @@ if __name__ == '__main__':
     trainx, testx = load_unlabeled_database(unlabeled_path)
     teste = Representations(trainx, testx)
     teste.Generate_all(epochs=3, seeds_rep=True, arch_rep=False, hidden_rep=True)
+    CLASSIFICACAO_DEFESA.main()
 

@@ -1,0 +1,3 @@
+[submodule "bases"]
+	path = bases
+	url = https://github.com/Kyutzy/bases-tcc

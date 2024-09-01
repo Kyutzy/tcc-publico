@@ -20,8 +20,6 @@ import tensorflow as tf
 from scipy.stats import mode
 
 
-LABELED_PATH = r"L:\TCC\Dataset"
-
 
 def load_yildirim(dir_path: str) -> Union[np.array, np.array]:
     """
@@ -67,12 +65,13 @@ def load_labeled_database(dir_path: str) -> Union[np.array, np.array, np.array, 
     return train_x, train_y, test_x, test_y
 
 
-def split_train_test_by_number_of_autoencoders(number_of_autoencoders: int) -> Union[dict, dict]:
+def split_train_test_by_number_of_autoencoders(number_of_autoencoders: int, LABELED_PATH:str = r".\Dataset") -> Union[dict, dict]:
     """
     Faz a separação da base de dados para cada autoencoder utilizar corretamente
 
     Args:
         number_of_autoencoders (int): a quantidade de autoencoders que serão utilizados
+        LABEL_PATH (str): caminho onde estão as imagens e as labels
 
     Returns:
         Union[dict, dict]: Retorna um dicionário com os dados completos e um dicionário com os dados separados
@@ -387,7 +386,7 @@ def voto_majoritario(predicoes: np.array) -> np.array:
     return predicao_final
 
 
-def main():
+def main(quant_representation_path: str = r".\temp_autoencoder\50 REP") -> None:
     """
     função main do código
     """
@@ -417,10 +416,8 @@ def main():
     np.save('Y_train.npy', train_y)
     np.save('Y_test.npy', test_y)
 
-    quant_representation_path = r"L:\TCC\temp_autoencoder\50 REP"
-
-    # gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train/")
-    # gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
+    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train/")
+    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
 
     representations_train = carregar_representacoes(r"./representations_train/")
     representations_test = carregar_representacoes(r"./representations_test/")
