@@ -1,8 +1,6 @@
 opencv-contrib-python==4.8.1.78
 scikit-learn==1.4.2
 numpy==1.23.5
-DESlib==0.3.7
 tensorflow==2.12.0
-dlib==19.24.4
-imutils==0.5.4
 keras==2.12.0
+matplotlib==3.7.1
