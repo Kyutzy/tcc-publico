@@ -20,7 +20,7 @@ import tensorflow as tf
 from scipy.stats import mode
 
 
-LABELED_PATH = r"L:\TCC\Dataset"
+LABELED_PATH = r".\bases-tcc\Dataset"
 
 
 def load_yildirim(dir_path: str) -> Union[np.array, np.array]:
@@ -387,11 +387,13 @@ def voto_majoritario(predicoes: np.array) -> np.array:
     return predicao_final
 
 
-def main():
+def main(number_of_representations:int = 50) -> None:
+    """Realiza todas as chamadas de função para classificação
+
+    Args:
+        number_of_representations (int, optional): Quantidade de representações. Defaults to 50.
     """
-    função main do código
-    """
-    dataset_complete, _ = split_train_test_by_number_of_autoencoders(50)
+    dataset_complete, _ = split_train_test_by_number_of_autoencoders(number_of_representations)
 
     train_x = np.concatenate((dataset_complete['kidney_train'][0], dataset_complete['normal_train'][0]), axis=0)
     train_y = np.concatenate((dataset_complete['kidney_train'][1], dataset_complete['normal_train'][1]), axis=0)
@@ -417,10 +419,10 @@ def main():
     np.save('Y_train.npy', train_y)
     np.save('Y_test.npy', test_y)
 
-    quant_representation_path = r"L:\TCC\temp_autoencoder\50 REP"
+    quant_representation_path = rf".\temp_autoencoder\{number_of_representations} REP"
 
-    # gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train/")
-    # gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
+    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train/")
+    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
 
     representations_train = carregar_representacoes(r"./representations_train/")
     representations_test = carregar_representacoes(r"./representations_test/")
@@ -428,7 +430,7 @@ def main():
     labels_test = carrega_etiquetas('Y_test.npy')
 
     # classifiers = [SVC(C=1.0, kernel="poly", probability=False, class_weight=None, random_state=42) for _ in range(50)]
-    classifiers = [RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42) for _ in range(50)]
+    classifiers = [RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42) for _ in range(number_of_representations)]
 
     representations_train = [usar_pca_na_representacao(representation) for representation in representations_train]
     representations_test = [usar_pca_na_representacao(representation) for representation in representations_test]
