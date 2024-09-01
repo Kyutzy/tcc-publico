@@ -23,7 +23,7 @@ class Representations:
                       output_activation='linear', size_input_data=[96, 96, 1],
                       n_hidden=500, n_encoder=5, optimizer=tf.keras.optimizers.legacy.SGD(learning_rate=0.001, momentum=0.9, decay=1e-6),
                       kernel_initializer=None, padding='same', epochs=20, verbose=2, batch_size=60,
-                      seeds_rep = True, hidden_rep = False, arch_rep = False, number_of_repr = 10, const = 0.001):
+                      seeds_rep = True, hidden_rep = False, arch_rep = False, number_of_repr = 50, const = 0.001):
         auxiliary_train = self.auxiliary_train
         auxiliary_test = self.auxiliary_test
         self.size_input_data = size_input_data

@@ -20,7 +20,7 @@ import tensorflow as tf
 from scipy.stats import mode
 
 
-LABELED_PATH = r"L:\cesar\Dataset"
+LABELED_PATH = r"L:\TCC\Dataset"
 
 
 def load_yildirim(dir_path: str) -> Union[np.array, np.array]:
@@ -172,6 +172,7 @@ def extracao_camada_oculta(modelo: tf.keras.models.Model) -> tf.keras.models.Seq
     for index, layer in enumerate(modelo.layers):
         if layer.name == 'hidden_layer':
             k = index + 1
+            print(modelo.summary())
     return tf.keras.models.Sequential(modelo.layers[:k])
 
 
@@ -390,7 +391,7 @@ def main():
     """
     função main do código
     """
-    dataset_complete, _ = split_train_test_by_number_of_autoencoders(10)
+    dataset_complete, _ = split_train_test_by_number_of_autoencoders(50)
 
     train_x = np.concatenate((dataset_complete['kidney_train'][0], dataset_complete['normal_train'][0]), axis=0)
     train_y = np.concatenate((dataset_complete['kidney_train'][1], dataset_complete['normal_train'][1]), axis=0)
@@ -413,23 +414,21 @@ def main():
         f" train_y = {train_y.shape}, "
         f"test_x = {test_x.shape}, test_y = {test_y.shape}")
 
-    # np.save('all_labels', np.concatenate((train_y, test_y), axis=0))
-
     np.save('Y_train.npy', train_y)
     np.save('Y_test.npy', test_y)
 
-    quant_representation_path = r"L:\TCC\temp_autoencoder\10 REP"
+    quant_representation_path = r"L:\TCC\temp_autoencoder\50 REP"
 
-    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train/")
-    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
+    # gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train/")
+    # gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
 
     representations_train = carregar_representacoes(r"./representations_train/")
     representations_test = carregar_representacoes(r"./representations_test/")
     labels_train = carrega_etiquetas('Y_train.npy')
     labels_test = carrega_etiquetas('Y_test.npy')
 
-    classifiers = [SVC(C=1.0, kernel="poly", probability=False, class_weight=None, random_state=42) for _ in range(10)]
-    # classifiers = [RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42) for _ in range(10)]
+    # classifiers = [SVC(C=1.0, kernel="poly", probability=False, class_weight=None, random_state=42) for _ in range(50)]
+    classifiers = [RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42) for _ in range(50)]
 
     representations_train = [usar_pca_na_representacao(representation) for representation in representations_train]
     representations_test = [usar_pca_na_representacao(representation) for representation in representations_test]
@@ -438,15 +437,10 @@ def main():
 
     predicoes = [predizer_classificacao(classifier, representation) for representation, classifier in
                  zip(representations_test, classifiers)]
-    # probabilidades = [predizer_probabilidade(classifier, representations_test) for classifier in classifiers]
 
     # Ver as classes previstas pelos classificadores
     for i, classifier in enumerate(classifiers):
         print(f"Classes previstas pelo classificador {i + 1}: {classifier.classes_}")
-
-    acuracias = [calcular_acuracia(predicao, test_y) for predicao in predicoes]
-    matrizes_de_confusao = [calcular_matriz_de_confusao(predicao, test_y) for predicao in predicoes]
-    acuracia_media = calcular_acuracia_media(predicoes, test_y)
 
     # Realiza a votação majoritária
     predicao_final = voto_majoritario(predicoes)
@@ -457,10 +451,6 @@ def main():
 
     print(f"Acurácia final: {acuracia_final}")
     print(f"Matriz de confusão final:\n{matriz_de_confusao_final}")
-
-    # print(acuracias)
-    # print(matrizes_de_confusao)
-    # print(acuracia_media)
 
 
 if __name__ == '__main__':

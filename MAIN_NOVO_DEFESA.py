@@ -39,5 +39,5 @@ if __name__ == '__main__':
     # carregar base nao rotulada
     trainx, testx = load_unlabeled_database(unlabeled_path)
     teste = Representations(trainx, testx)
-    teste.Generate_all(epochs=10, seeds_rep=True, arch_rep=False, hidden_rep=True)
+    teste.Generate_all(epochs=3, seeds_rep=True, arch_rep=False, hidden_rep=True)
 
