@@ -27,7 +27,7 @@ Este projeto realiza a classificação de imagens utilizando redes neurais com a
 Para clonar este repositório com o submódulo incluído, utilize o comando:
 
 ```bash
-git clone --recurse-submodules https://github.com/Kyutzy/tcc-publico
+git clone --recurse-submodules https://github.com/Kyutzy/tcc-publico.git
 ```
 
 Caso já tenha clonado o repositório sem o submódulo, você pode inicializá-lo com os seguintes comandos:
