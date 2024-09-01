@@ -22,6 +22,29 @@ Este projeto realiza a classificação de imagens utilizando redes neurais com a
 - `GENERATE_REPRESENTATIONS_DEFESA.py`: Contém a classe `Representations`, responsável por gerar as representações latentes das imagens usando autoencoders.
 - `CLASSIFICACAO_DEFESA.py`: Realiza a classificação das imagens com base nas representações geradas, utilizando classificadores como Random Forest e SVM.
 
+## Clonando o Repositório
+
+Para clonar este repositório com o submódulo incluído, utilize o comando:
+
+```bash
+git clone --recurse-submodules <URL_DO_REPOSITORIO>
+```
+
+Caso já tenha clonado o repositório sem o submódulo, você pode inicializá-lo com os seguintes comandos:
+
+```bash
+git submodule init
+git submodule update
+```
+
+### Atualizando Submódulos
+
+Sempre que quiser garantir que o submódulo esteja atualizado, utilize:
+
+```bash
+git submodule update --remote
+```
+
 ## Dependências
 
 Este projeto utiliza as seguintes bibliotecas:
@@ -32,14 +55,6 @@ Este projeto utiliza as seguintes bibliotecas:
 - `tensorflow==2.12.0`
 - `imutils==0.5.4`
 - `keras==2.12.0`
-
-Todas as dependências podem ser instaladas utilizando o arquivo `requirements.txt`.
-
-### Instalando Dependências
-
-```bash
-pip install -r requirements.txt
-```
 
 ## Criando e Utilizando um Ambiente Virtual (venv)
 
@@ -79,29 +94,6 @@ Quando terminar de trabalhar no projeto, desative o ambiente virtual com o segui
 
 ```bash
 deactivate
-```
-
-## Clonando o Repositório
-
-Para clonar este repositório com o submódulo incluído, utilize o comando:
-
-```bash
-git clone --recurse-submodules <URL_DO_REPOSITORIO>
-```
-
-Caso já tenha clonado o repositório sem o submódulo, você pode inicializá-lo com os seguintes comandos:
-
-```bash
-git submodule init
-git submodule update
-```
-
-### Atualizando Submódulos
-
-Sempre que quiser garantir que o submódulo esteja atualizado, utilize:
-
-```bash
-git submodule update --remote
 ```
 
 ## Executando o Projeto
