@@ -14,7 +14,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
 from sklearn.decomposition import PCA
-
+import matplotlib.pyplot as plt
 import tensorflow as tf
 
 from scipy.stats import mode
@@ -22,6 +22,20 @@ from scipy.stats import mode
 
 LABELED_PATH = r".\bases-tcc\Dataset"
 
+os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
+
+
+def show_images(images, titles=None):
+    """Função para mostrar uma lista de imagens."""
+    n = len(images)
+    plt.figure(figsize=(12, 6))
+    for i in range(n):
+        plt.subplot(1, n, i + 1)
+        plt.imshow(images[i], cmap='gray')
+        if titles is not None:
+            plt.title(titles[i])
+        plt.axis('off')
+    plt.show()
 
 def load_yildirim(dir_path: str) -> Union[np.array, np.array]:
     """
@@ -35,14 +49,17 @@ def load_yildirim(dir_path: str) -> Union[np.array, np.array]:
         é um array com as labels.
     """
     images = []
-    size_input_data = [96, 96, 1]
+    size_input_data = [224, 224, 1]
     image_files = glob.glob(f"{dir_path}/*.png", recursive=True)
     labels = [os.path.basename(os.path.dirname(file)) for file in image_files]
 
     for image_file in image_files:
         img = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
+        #show_images([img], titles='Original')
         img = cv2.resize(img, (size_input_data[0], size_input_data[1]))
+        #show_images([img], titles='resize')
         img = np.reshape(img, (size_input_data[0], size_input_data[1], size_input_data[2]))
+        #show_images([img], titles='reshape')
         images.append(img)
 
     loaded_images = np.array(images)
@@ -188,6 +205,7 @@ def representacao_por_camada_oculta(modelo: tf.keras.models.Sequential, dados: n
         np.ndarray: retorna a representação do modelo
     """
     # print(dados)
+    print("Forma dos dados:", dados.shape)  # Deve corresponder ao esperado pelo modelo
     return modelo.predict(dados)
 
 
@@ -387,7 +405,7 @@ def voto_majoritario(predicoes: np.array) -> np.array:
     return predicao_final
 
 
-def main(number_of_representations:int = 50) -> None:
+def main(number_of_representations: int = 5) -> None:
     """Realiza todas as chamadas de função para classificação
 
     Args:
