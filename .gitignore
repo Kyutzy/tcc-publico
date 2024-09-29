@@ -14,3 +14,6 @@ haarcascade_frontalface_alt2.xml
 *.npy
 *.ipynb
 venv
+*.json
+*.npy
+*.h5

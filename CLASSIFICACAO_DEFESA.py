@@ -84,7 +84,7 @@ def load_labeled_database(dir_path: str) -> Union[np.array, np.array, np.array, 
     return train_x, train_y, test_x, test_y
 
 
-def split_train_test_by_number_of_autoencoders(number_of_autoencoders: int) -> Union[dict, dict]:
+def split_train_test_by_number_of_autoencoders() -> dict:
     """
     Faz a separação da base de dados para cada autoencoder utilizar corretamente
 
@@ -100,20 +100,7 @@ def split_train_test_by_number_of_autoencoders(number_of_autoencoders: int) -> U
         'normal_train': load_yildirim(f'{LABELED_PATH}/Train/Normal'),
         'normal_test': load_yildirim(f'{LABELED_PATH}/Test/Normal')
     }
-
-    all_types_of_files_splitted = {
-        'kidney_train': [[], []],
-        'kidney_test': [[], []],
-        'normal_train': [[], []],
-        'normal_test': [[], []]
-    }
-
-    for key, values in all_types_of_files.items():
-        amount_of_samples = len(values[0])
-        desired_amount_of_samples = amount_of_samples // number_of_autoencoders
-        all_types_of_files_splitted[key][0] = np.array_split(values[0], desired_amount_of_samples)
-        all_types_of_files_splitted[key][1] = np.array_split(values[1], desired_amount_of_samples)
-    return all_types_of_files, all_types_of_files_splitted
+    return all_types_of_files
 
 
 def combine_images_and_labels(images: np.ndarray, labels: np.ndarray) -> list:
@@ -265,8 +252,8 @@ def carregar_representacoes(path: str) -> np.array:
         Iterator[np.array]: cada representação carregadas
     """
     representacoes = glob.glob(f'{path}/**/*.npy')
-    for representacao in representacoes:
-        yield np.load(representacao)
+    representacoes = [np.load(representacao) for representacao in representacoes]
+    return representacoes
 
 
 def carrega_etiquetas(path: str) -> np.array:
@@ -420,7 +407,7 @@ def main(number_of_representations: int = 5) -> None:
     Args:
         number_of_representations (int, optional): Quantidade de representações. Defaults to 50.
     """
-    dataset_complete, _ = split_train_test_by_number_of_autoencoders(number_of_representations)
+    dataset_complete = split_train_test_by_number_of_autoencoders()
 
     train_x = np.concatenate((dataset_complete['kidney_train'][0], dataset_complete['normal_train'][0]), axis=0)
     train_y = np.concatenate((dataset_complete['kidney_train'][1], dataset_complete['normal_train'][1]), axis=0)
