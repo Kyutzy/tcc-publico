@@ -206,10 +206,6 @@ def criacao_pastas(path: str) -> None:
     if not os.path.exists(path):
         os.makedirs(path)
 
-
-import glob
-import numpy as np
-
 def gerar_representacoes_base_atraves_de_kyoto(representations_path: str, dados: np.ndarray, caminho_resultado: str) -> None:
     """Realiza a geração das representações utilizando a base
 
