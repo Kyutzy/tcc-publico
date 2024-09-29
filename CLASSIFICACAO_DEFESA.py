@@ -9,7 +9,7 @@ import glob
 import numpy as np
 
 import cv2
-
+from sklearn.utils import shuffle
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
@@ -37,17 +37,11 @@ def show_images(images, titles=None):
         plt.axis('off')
     plt.show()
 
+def aumentar_contraste(img: np.ndarray) -> np.ndarray:
+    """Aumenta o contraste da imagem usando equalização de histograma."""
+    return cv2.equalizeHist(img)
+
 def load_yildirim(dir_path: str) -> Union[np.array, np.array]:
-    """
-    Carrega as imagens da base de dados do Yildirim.
-
-    Args:
-        dir_path (str): Caminho onde estão as imagens e as labels.
-
-    Returns:
-        Union[np.array, np.array]: retorna uma tupla onde o primeiro elemento é um array com as imagens e o segundo
-        é um array com as labels.
-    """
     images = []
     size_input_data = [224, 224, 1]
     image_files = glob.glob(f"{dir_path}/*.png", recursive=True)
@@ -55,17 +49,18 @@ def load_yildirim(dir_path: str) -> Union[np.array, np.array]:
 
     for image_file in image_files:
         img = cv2.imread(image_file, cv2.IMREAD_GRAYSCALE)
-        #show_images([img], titles='Original')
         img = cv2.resize(img, (size_input_data[0], size_input_data[1]))
-        #show_images([img], titles='resize')
+        img = aumentar_contraste(img)
+
         img = np.reshape(img, (size_input_data[0], size_input_data[1], size_input_data[2]))
-        #show_images([img], titles='reshape')
+        # show_images([img], 'reshape')
         images.append(img)
 
     loaded_images = np.array(images)
     loaded_images = loaded_images.astype('float32') / 255.0
     labels = np.array(labels)
     return loaded_images, labels
+
 
 
 def load_labeled_database(dir_path: str) -> Union[np.array, np.array, np.array, np.array]:
@@ -411,6 +406,9 @@ def main(number_of_representations: int = 5) -> None:
     test_x = np.concatenate((dataset_complete['kidney_test'][0], dataset_complete['normal_test'][0]), axis=0)
     test_y = np.concatenate((dataset_complete['kidney_test'][1], dataset_complete['normal_test'][1]), axis=0)
 
+    train_x, train_y = shuffle(train_x, train_y, random_state=42)
+    test_x, test_y = shuffle(test_x, test_y, random_state=42)
+
     # Ver as classes e suas quantidades no conjunto de treinamento
     classes_treino, counts_treino = np.unique(train_y, return_counts=True)
     print(f"Classes de treino: {classes_treino}")
@@ -439,8 +437,8 @@ def main(number_of_representations: int = 5) -> None:
     labels_train = carrega_etiquetas('Y_train.npy')
     labels_test = carrega_etiquetas('Y_test.npy')
 
-    # classifiers = [SVC(C=1.0, kernel="poly", probability=False, class_weight=None, random_state=42) for _ in range(50)]
-    classifiers = [RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42) for _ in range(number_of_representations)]
+    classifiers = [SVC(C=1.0, kernel="sigmoid", probability=False, class_weight='balanced', random_state=42) for _ in range(50)]
+    #classifiers = [RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42) for _ in range(number_of_representations)]
 
     representations_train = [usar_pca_na_representacao(representation) for representation in representations_train]
     representations_test = [usar_pca_na_representacao(representation) for representation in representations_test]
