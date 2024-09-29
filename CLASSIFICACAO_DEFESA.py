@@ -220,6 +220,9 @@ def criacao_pastas(path: str) -> None:
         os.makedirs(path)
 
 
+import glob
+import numpy as np
+
 def gerar_representacoes_base_atraves_de_kyoto(representations_path: str, dados: np.ndarray, caminho_resultado: str) -> None:
     """Realiza a geração das representações utilizando a base
 
@@ -229,18 +232,24 @@ def gerar_representacoes_base_atraves_de_kyoto(representations_path: str, dados:
         caminho_resultado (str): caminho onde serão salvas as representações geradas
     """
     arquivos_json = glob.glob(representations_path + "/*.json")
-    # print(arquivosJSON)
     arquivos_h5 = glob.glob(representations_path + "/*.h5")
-    size = round(len(arquivos_json))
+    size = len(arquivos_json)  # O número de autoencoders
     criacao_pastas(caminho_resultado)
+
     for index, arq in enumerate(arquivos_json):
-        for i in range(size):
-            modelo = carregar_modelo_do_json(arq)
-            modelo = carregar_pesos_no_modelo(modelo, arquivos_h5[index])
-            camada_oculta = extracao_camada_oculta(modelo)
-            criacao_pastas(f'{caminho_resultado}{i}')
-            np.save(f'{caminho_resultado}{index}/images_{i}',
-                    representacao_por_camada_oculta(camada_oculta, dados))
+        # Carregar o modelo e os pesos uma vez para cada autoencoder
+        modelo = carregar_modelo_do_json(arq)
+        modelo = carregar_pesos_no_modelo(modelo, arquivos_h5[index])
+        camada_oculta = extracao_camada_oculta(modelo)
+
+        # Criar a pasta para o autoencoder específico
+        pasta_autoencoder = f'{caminho_resultado}/{index}'
+        criacao_pastas(pasta_autoencoder)
+
+        # Salvar a representação apenas uma vez por autoencoder
+        np.save(f'{pasta_autoencoder}/images',
+                representacao_por_camada_oculta(camada_oculta, dados))
+
 
 
 def carregar_representacoes(path: str) -> np.array:

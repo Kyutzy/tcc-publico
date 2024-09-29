@@ -126,8 +126,8 @@ class Representations:
             def customized_loss(autoencoder_model):
                 self.autoencoder_model = autoencoder_model
                 def lossFunction(y_true, y_pred):
-                    print("y_true shape:", tf.shape(y_true))
-                    print("y_pred shape:", tf.shape(y_pred))
+                    # print("y_true shape:", tf.shape(y_true))
+                    # print("y_pred shape:", tf.shape(y_pred))
                     if (j == 0):
                         loss = tf.square(tf.subtract(y_true, y_pred))
                         return tf.reduce_mean(loss, axis=1)
