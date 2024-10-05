@@ -18,10 +18,11 @@ from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split,GridSearchCV
 from sklearn.model_selection import StratifiedKFold
 import shutil
-
+from sklearn.preprocessing import LabelEncoder
 
 import matplotlib.pyplot as plt
 import tensorflow as tf
+import keras
 
 from scipy.stats import mode
 
@@ -429,6 +430,26 @@ def limpar_diretorio(path: str) -> None:
         shutil.rmtree(path)
     os.makedirs(path)
 
+def create_cnn_model(input_shape, num_classes):
+    model = tf.keras.models.Sequential()
+
+    model.add(tf.keras.layers.Input(shape=input_shape))  # Especifique a forma da entrada aqui
+    model.add(tf.keras.layers.Conv2D(32, (3, 3), activation='relu'))
+
+    model.add(tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape))
+    model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+
+    model.add(tf.keras.layers.Conv2D(64, (3, 3), activation='relu'))
+    model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+
+    model.add(tf.keras.layers.Conv2D(128, (3, 3), activation='relu'))
+    model.add(tf.keras.layers.Flatten())
+
+    model.add(tf.keras.layers.Dense(128, activation='relu'))
+    model.add(tf.keras.layers.Dense(num_classes, activation='softmax'))
+
+    return model
+
 def main(number_of_representations: int = 5) -> None:
     n_splits = 5  # Number of folds
     quant_representation_path = rf".\temp_autoencoder\{number_of_representations} REP"
@@ -515,8 +536,8 @@ def main(number_of_representations: int = 5) -> None:
         print(relatorios_classificacao)
         print(matrizes_confusao)
         # Optional: Clear temporary representations if need
-        limpar_diretorio(r"./representations_train_full/")
-        limpar_diretorio(r"./representations_test/")
+        # limpar_diretorio(r"./representations_train_full/")
+        # limpar_diretorio(r"./representations_test/")
 
     # Retrain classifiers on full training data using the best parameters from the last fold
     final_classifiers = []
@@ -550,6 +571,37 @@ def main(number_of_representations: int = 5) -> None:
     acuracia_media = np.mean(acuracias)
     desvio_padrao = np.std(acuracias)
     print(f"\nAcurácia média na validação cruzada: {acuracia_media:.4f} ± {desvio_padrao:.4f}")
+
+    # Load the data
+    cnn = create_cnn_model((224, 224, 1), 2)
+    cnn.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+    label_encoder = LabelEncoder()
+    
+    y_train_encoded = label_encoder.fit_transform(train_y)
+    y_test_encoded = label_encoder.transform(test_y)
+    
+    # Train the model
+    print(f"Exemplos de y_train antes da codificação: {train_y[:5]}")
+    print(f"Exemplos de y_train após codificação: {y_train_encoded[:5]}")
+    
+    cnn.fit(train_x, y_train_encoded, epochs=7, batch_size=32, validation_data=(test_x, y_test_encoded))
+
+    # Predict on test data
+    predicoes_cnn = cnn.predict(test_x)
+    predicoes_cnn = np.argmax(predicoes_cnn, axis=1)
+    
+    # Evaluate on test data
+    acuracia_cnn = accuracy_score(y_test_encoded, predicoes_cnn)
+    relatorio_cnn = classification_report(y_test_encoded, predicoes_cnn)
+    matriz_confusao_cnn = confusion_matrix(y_test_encoded, predicoes_cnn)
+
+    print("\nResultados CNN no conjunto de teste:")
+    print(relatorio_cnn)
+    print(f"Acurácia CNN no conjunto de teste: {acuracia_cnn}")
+    print(f"Matriz de confusão CNN no conjunto de teste:\n{matriz_confusao_cnn}")
+
+
 
 if __name__ == '__main__':
     main()
