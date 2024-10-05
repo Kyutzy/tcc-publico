@@ -12,8 +12,14 @@ import cv2
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 from sklearn.decomposition import PCA
+from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split,GridSearchCV
+from sklearn.model_selection import StratifiedKFold
+import shutil
+
+
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
@@ -235,21 +241,23 @@ def gerar_representacoes_base_atraves_de_kyoto(representations_path: str, dados:
 
 
 
-def carregar_representacoes(path: str) -> np.array:
+def carregar_representacoes(path: str):
     """Carrega as representações geradas anteriormente para uso nesta sessão
 
     Args:
         path (str): caminho onde estão as representações
 
     Returns:
-        np.array: representações carregadas
-
-    Yields:
-        Iterator[np.array]: cada representação carregadas
+        List[np.ndarray]: lista de representações carregadas
     """
-    representacoes = glob.glob(f'{path}/**/*.npy')
-    representacoes = [np.load(representacao) for representacao in representacoes]
+    # Ordena os diretórios para garantir consistência
+    autoencoder_dirs = sorted(glob.glob(f'{path}/**/*.npy'))
+    representacoes = []
+    for rep_path in autoencoder_dirs:
+        rep = np.load(rep_path)
+        representacoes.append(rep)
     return representacoes
+
 
 
 def carrega_etiquetas(path: str) -> np.array:
@@ -396,74 +404,152 @@ def voto_majoritario(predicoes: np.array) -> np.array:
 
     return predicao_final
 
+def treinar_classificador_com_gridsearch(representation: np.array, labels: np.array, param_grid: dict):
+    """
+    Trains RandomForestClassifier using GridSearchCV to find the best hyperparameters.
+
+    Returns:
+        tuple: (best_estimator, best_params)
+    """
+    rf = RandomForestClassifier(random_state=42)
+    grid_search = GridSearchCV(
+        estimator=rf,
+        param_grid=param_grid,
+        cv=3,
+        n_jobs=-1,
+        verbose=1,
+        scoring='accuracy'
+    )
+    grid_search.fit(representation, labels)
+    print(f"Best hyperparameters: {grid_search.best_params_}")
+    return grid_search.best_estimator_, grid_search.best_params_
+
+def limpar_diretorio(path: str) -> None:
+    if os.path.exists(path):
+        shutil.rmtree(path)
+    os.makedirs(path)
 
 def main(number_of_representations: int = 5) -> None:
-    """Realiza todas as chamadas de função para classificação
+    n_splits = 5  # Number of folds
+    quant_representation_path = rf".\temp_autoencoder\{number_of_representations} REP"
 
-    Args:
-        number_of_representations (int, optional): Quantidade de representações. Defaults to 50.
-    """
     dataset_complete = split_train_test_by_number_of_autoencoders()
 
+    # Combine training data
     train_x = np.concatenate((dataset_complete['kidney_train'][0], dataset_complete['normal_train'][0]), axis=0)
     train_y = np.concatenate((dataset_complete['kidney_train'][1], dataset_complete['normal_train'][1]), axis=0)
 
+    # Test data remains separate
     test_x = np.concatenate((dataset_complete['kidney_test'][0], dataset_complete['normal_test'][0]), axis=0)
     test_y = np.concatenate((dataset_complete['kidney_test'][1], dataset_complete['normal_test'][1]), axis=0)
 
-    # Ver as classes e suas quantidades no conjunto de treinamento
-    classes_treino, counts_treino = np.unique(train_y, return_counts=True)
-    print(f"Classes de treino: {classes_treino}")
-    print(f"Quantidade de amostras em cada classe de treino: {counts_treino}")
+    # Shuffle data
+    train_x, train_y = shuffle(train_x, train_y, random_state=42)
+    test_x, test_y = shuffle(test_x, test_y, random_state=42)
 
-    # Ver as classes e suas quantidades no conjunto de teste
-    classes_teste, counts_teste = np.unique(test_y, return_counts=True)
-    print(f"Classes de teste: {classes_teste}")
-    print(f"Quantidade de amostras em cada classe de teste: {counts_teste}")
+    # Generate representations for the entire training data
+    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train_full/")
+    representations_train_full = carregar_representacoes(r"./representations_train_full/")
 
-    print(
-        f"Shapes: train_x = {train_x.shape},"
-        f" train_y = {train_y.shape}, "
-        f"test_x = {test_x.shape}, test_y = {test_y.shape}")
-
-    np.save('Y_train.npy', train_y)
-    np.save('Y_test.npy', test_y)
-
-    quant_representation_path = rf".\temp_autoencoder\{number_of_representations} REP"
-
-    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train/")
+    # Generate representations for the test data
     gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
-
-    representations_train = carregar_representacoes(r"./representations_train/")
     representations_test = carregar_representacoes(r"./representations_test/")
-    labels_train = carrega_etiquetas('Y_train.npy')
-    labels_test = carrega_etiquetas('Y_test.npy')
 
-    # classifiers = [SVC(C=1.0, kernel="poly", probability=False, class_weight=None, random_state=42) for _ in range(50)]
-    classifiers = [RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42) for _ in range(number_of_representations)]
+    # Initialize cross-validation
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
 
-    representations_train = [usar_pca_na_representacao(representation) for representation in representations_train]
-    representations_test = [usar_pca_na_representacao(representation) for representation in representations_test]
-    classifiers = [treinar_classificador(representation, labels_train, classifier) for representation, classifier in
-                   zip(representations_train, classifiers)]
+    acuracias = []
+    relatorios_classificacao = []
+    matrizes_confusao = []
+    best_params_list = []
 
-    predicoes = [predizer_classificacao(classifier, representation) for representation, classifier in
-                 zip(representations_test, classifiers)]
+    for fold, (train_index, val_index) in enumerate(skf.split(train_x, train_y)):
+        print(f"\nFold {fold + 1}/{n_splits}")
 
-    # Ver as classes previstas pelos classificadores
-    for i, classifier in enumerate(classifiers):
-        print(f"Classes previstas pelo classificador {i + 1}: {classifier.classes_}")
+        # Use indices to select subsets from the full representations
+        representations_train = [rep[train_index] for rep in representations_train_full]
+        representations_val = [rep[val_index] for rep in representations_train_full]
 
-    # Realiza a votação majoritária
-    predicao_final = voto_majoritario(predicoes)
+        labels_train = train_y[train_index]
+        labels_val = train_y[val_index]
 
-    # Calcula a acurácia final após a votação majoritária
-    acuracia_final = calcular_acuracia(predicao_final, labels_test)
-    matriz_de_confusao_final = calcular_matriz_de_confusao(predicao_final, labels_test)
+        # Define the parameter grid
+        param_grid = {
+            'n_estimators': [100, 200],
+            'max_depth': [None, 10],
+            'min_samples_split': [2, 5],
+            'min_samples_leaf': [1, 2],
+            'max_features': ['sqrt'],
+            'class_weight': ['balanced']
+        }
 
-    print(f"Acurácia final: {acuracia_final}")
-    print(f"Matriz de confusão final:\n{matriz_de_confusao_final}")
+        # Train classifiers with GridSearchCV
+        classifiers = []
+        fold_best_params = []
 
+        for representation in representations_train:
+            classifier, best_params = treinar_classificador_com_gridsearch(representation, labels_train, param_grid)
+            classifiers.append(classifier)
+            fold_best_params.append(best_params)
+
+        best_params_list.append(fold_best_params)
+
+        # Make predictions on validation set
+        predicoes = [predizer_classificacao(classifier, representation) for classifier, representation in
+                     zip(classifiers, representations_val)]
+
+        # Majority voting
+        predicao_final = voto_majoritario(predicoes)
+
+        # Evaluate the model
+        acuracia = calcular_acuracia(predicao_final, labels_val)
+        relatorio = classification_report(labels_val, predicao_final, output_dict=True)
+        matriz_confusao = calcular_matriz_de_confusao(predicao_final, labels_val)
+
+        # Store the metrics
+        acuracias.append(acuracia)
+        relatorios_classificacao.append(relatorio)
+        matrizes_confusao.append(matriz_confusao)
+
+        print(acuracias)
+        print(relatorios_classificacao)
+        print(matrizes_confusao)
+        # Optional: Clear temporary representations if need
+        limpar_diretorio(r"./representations_train_full/")
+        limpar_diretorio(r"./representations_test/")
+
+    # Retrain classifiers on full training data using the best parameters from the last fold
+    final_classifiers = []
+
+    # Use the best parameters from the last fold
+    last_fold_best_params = best_params_list[-1]
+
+    for representation, best_params in zip(representations_train_full, last_fold_best_params):
+        classifier = RandomForestClassifier(**best_params, random_state=42)
+        classifier.fit(representation, train_y)
+        final_classifiers.append(classifier)
+
+    # Predict on test data
+    predicoes_teste = [predizer_classificacao(classifier, representation) for classifier, representation in
+                       zip(final_classifiers, representations_test)]
+
+    # Majority voting on test predictions
+    predicao_final_teste = voto_majoritario(predicoes_teste)
+
+    # Evaluate on test data
+    acuracia_teste = calcular_acuracia(predicao_final_teste, test_y)
+    relatorio_teste = classification_report(test_y, predicao_final_teste)
+    matriz_confusao_teste = calcular_matriz_de_confusao(predicao_final_teste, test_y)
+
+    print("\nResultados no conjunto de teste:")
+    print(relatorio_teste)
+    print(f"Acurácia no conjunto de teste: {acuracia_teste}")
+    print(f"Matriz de confusão no conjunto de teste:\n{matriz_confusao_teste}")
+
+    # Average cross-validation results
+    acuracia_media = np.mean(acuracias)
+    desvio_padrao = np.std(acuracias)
+    print(f"\nAcurácia média na validação cruzada: {acuracia_media:.4f} ± {desvio_padrao:.4f}")
 
 if __name__ == '__main__':
     main()
