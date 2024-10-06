@@ -15,10 +15,13 @@ from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 from sklearn.decomposition import PCA
 from sklearn.utils import shuffle
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split,GridSearchCV
 from sklearn.model_selection import StratifiedKFold
+from sklearn.utils.class_weight import compute_class_weight
 import shutil
 from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_selection import SelectKBest, f_classif
 
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -430,25 +433,36 @@ def limpar_diretorio(path: str) -> None:
         shutil.rmtree(path)
     os.makedirs(path)
 
-def create_cnn_model(input_shape, num_classes):
+def create_mlp_model(input_shape, num_classes):
     model = tf.keras.models.Sequential()
 
-    model.add(tf.keras.layers.Input(shape=input_shape))  # Especifique a forma da entrada aqui
-    model.add(tf.keras.layers.Conv2D(32, (3, 3), activation='relu'))
+    # Camada de entrada
+    model.add(tf.keras.layers.Input(shape=input_shape))
+    model.add(tf.keras.layers.Flatten(input_shape=(224, 224, 3)))
+    model.add(tf.keras.layers.Dense(units=1000, activation='relu'))
+    # Primeira camada oculta
+    model.add(tf.keras.layers.Dense(256, activation='relu'))
+    model.add(tf.keras.layers.BatchNormalization())
+    model.add(tf.keras.layers.Dropout(0.5))
 
-    model.add(tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape))
-    model.add(tf.keras.layers.MaxPooling2D((2, 2)))
-
-    model.add(tf.keras.layers.Conv2D(64, (3, 3), activation='relu'))
-    model.add(tf.keras.layers.MaxPooling2D((2, 2)))
-
-    model.add(tf.keras.layers.Conv2D(128, (3, 3), activation='relu'))
-    model.add(tf.keras.layers.Flatten())
-
+    # Segunda camada oculta
     model.add(tf.keras.layers.Dense(128, activation='relu'))
+    model.add(tf.keras.layers.BatchNormalization())
+    model.add(tf.keras.layers.Dropout(0.5))
+
+    # Terceira camada oculta
+    model.add(tf.keras.layers.Dense(64, activation='relu'))
+    model.add(tf.keras.layers.BatchNormalization())
+    model.add(tf.keras.layers.Dropout(0.5))
+
+    # Camada de saída
     model.add(tf.keras.layers.Dense(num_classes, activation='softmax'))
 
     return model
+
+
+# Compilar e treinar o modelo como mostrado anteriormente
+
 
 def main(number_of_representations: int = 5) -> None:
     n_splits = 5  # Number of folds
@@ -476,7 +490,7 @@ def main(number_of_representations: int = 5) -> None:
     gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
     representations_test = carregar_representacoes(r"./representations_test/")
 
-    # Initialize cross-validation
+    #Initialize cross-validation
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
 
     acuracias = []
@@ -573,33 +587,72 @@ def main(number_of_representations: int = 5) -> None:
     print(f"\nAcurácia média na validação cruzada: {acuracia_media:.4f} ± {desvio_padrao:.4f}")
 
     # Load the data
-    cnn = create_cnn_model((224, 224, 1), 2)
-    cnn.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
+    # Concatenar as representações
+    train_x_combined = np.concatenate(representations_train_full, axis=1)
+    test_x_combined = np.concatenate(representations_test, axis=1)
+
+    train_x_combined, train_y = shuffle(train_x_combined, train_y, random_state=42)
+    test_x_combined, test_y = shuffle(test_x_combined, test_y, random_state=42)
+
+    # Definir o número de classes
+    num_classes = 2  # Ajuste conforme o número de classes no seu problema
+
+    # Criar o modelo MLP
+    mlp = create_mlp_model(input_shape=(200,), num_classes=num_classes)
+
+    # Compilar o modelo
+    mlp.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+    # Codificar as labels
     label_encoder = LabelEncoder()
-    
     y_train_encoded = label_encoder.fit_transform(train_y)
     y_test_encoded = label_encoder.transform(test_y)
-    
-    # Train the model
+
+
+    scaler = StandardScaler()
+    train_x_combined = scaler.fit_transform(train_x_combined)
+    test_x_combined = scaler.transform(test_x_combined)
+
+    selector = SelectKBest(score_func=f_classif, k=200)
+    X_train_selected = selector.fit_transform(train_x_combined, y_train_encoded)
+    X_test_selected = selector.transform(test_x_combined)
+
+    # Imprimir exemplos de labels antes e depois da codificação
     print(f"Exemplos de y_train antes da codificação: {train_y[:5]}")
     print(f"Exemplos de y_train após codificação: {y_train_encoded[:5]}")
-    
-    cnn.fit(train_x, y_train_encoded, epochs=7, batch_size=32, validation_data=(test_x, y_test_encoded))
 
-    # Predict on test data
-    predicoes_cnn = cnn.predict(test_x)
-    predicoes_cnn = np.argmax(predicoes_cnn, axis=1)
-    
-    # Evaluate on test data
-    acuracia_cnn = accuracy_score(y_test_encoded, predicoes_cnn)
-    relatorio_cnn = classification_report(y_test_encoded, predicoes_cnn)
-    matriz_confusao_cnn = confusion_matrix(y_test_encoded, predicoes_cnn)
+    early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+    class_weights = compute_class_weight('balanced', classes=np.unique(y_train_encoded), y=y_train_encoded)
+    class_weights = dict(enumerate(class_weights))
 
-    print("\nResultados CNN no conjunto de teste:")
-    print(relatorio_cnn)
-    print(f"Acurácia CNN no conjunto de teste: {acuracia_cnn}")
-    print(f"Matriz de confusão CNN no conjunto de teste:\n{matriz_confusao_cnn}")
+
+    # Treinar o modelo
+    mlp.fit(X_train_selected, y_train_encoded, epochs=50, batch_size=32, class_weight=class_weights, callbacks=[early_stopping], validation_split=0.3)
+
+    # Fazer predições no conjunto de teste
+    predicoes_mlp = mlp.predict(X_test_selected)
+    predicoes_mlp = np.argmax(predicoes_mlp, axis=1)
+
+    # Avaliar o modelo no conjunto de teste
+    acuracia_mlp = accuracy_score(y_test_encoded, predicoes_mlp)
+    relatorio_mlp = classification_report(y_test_encoded, predicoes_mlp)
+    matriz_confusao_mlp = confusion_matrix(y_test_encoded, predicoes_mlp)
+
+    print("\nResultados MLP no conjunto de teste:")
+    print(relatorio_mlp)
+    print(f"Acurácia MLP no conjunto de teste: {acuracia_mlp}")
+    print(f"Matriz de confusão MLP no conjunto de teste:\n{matriz_confusao_mlp}")
+
+    print("\nResultados no conjunto de teste:")
+    print(relatorio_teste)
+    print(f"Acurácia no conjunto de teste: {acuracia_teste}")
+    print(f"Matriz de confusão no conjunto de teste:\n{matriz_confusao_teste}")
+
+    # Average cross-validation results
+    acuracia_media = np.mean(acuracias)
+    desvio_padrao = np.std(acuracias)
+    print(f"\nAcurácia média na validação cruzada: {acuracia_media:.4f} ± {desvio_padrao:.4f}")
 
 
 
