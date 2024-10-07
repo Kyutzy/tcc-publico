@@ -496,12 +496,20 @@ def main(number_of_representations: int = 5) -> None:
     train_y = np.concatenate((dataset_complete['kidney_train'][1], dataset_complete['normal_train'][1]), axis=0)
 
     # Test data remains separate
-    test_x = np.concatenate((dataset_complete['kidney_test'][0], dataset_complete['normal_test'][0]), axis=0)
-    test_y = np.concatenate((dataset_complete['kidney_test'][1], dataset_complete['normal_test'][1]), axis=0)
+    # test_x = np.concatenate((dataset_complete['kidney_test'][0], dataset_complete['normal_test'][0]), axis=0)
+    # test_y = np.concatenate((dataset_complete['kidney_test'][1], dataset_complete['normal_test'][1]), axis=0)
+
+    # Concatenar train_x com test_x
+    # train_x = np.concatenate((train_X, test_x), axis=0)
+
+    # Concatenar train_y com test_y
+    # train_y = np.concatenate((train_Y, test_y), axis=0)
 
     # Shuffle data
     train_x, train_y = shuffle(train_x, train_y, random_state=42)
-    test_x, test_y = shuffle(test_x, test_y, random_state=42)
+    #test_x, test_y = shuffle(test_x, test_y, random_state=42)
+
+    train_x, test_x, train_y, test_y = train_test_split(train_x, train_y, test_size=0.3, random_state=42, shuffle=True)
 
     # Generate representations for the entire training data
     gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train_full/")
