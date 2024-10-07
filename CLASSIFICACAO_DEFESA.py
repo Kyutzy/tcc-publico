@@ -408,7 +408,7 @@ def voto_majoritario(predicoes: np.array) -> np.array:
 
     return predicao_final
 
-def treinar_classificador_com_gridsearch(representation: np.array, labels: np.array, param_grid: dict):
+def treinar_classificador_com_gridsearch_rf(representation: np.array, labels: np.array, param_grid_rf: dict):
     """
     Trains RandomForestClassifier using GridSearchCV to find the best hyperparameters.
 
@@ -416,17 +416,38 @@ def treinar_classificador_com_gridsearch(representation: np.array, labels: np.ar
         tuple: (best_estimator, best_params)
     """
     rf = RandomForestClassifier(random_state=42)
-    grid_search = GridSearchCV(
+    grid_search_rf = GridSearchCV(
         estimator=rf,
-        param_grid=param_grid,
-        cv=3,
+        param_grid=param_grid_rf,
+        cv=5,
         n_jobs=-1,
         verbose=1,
-        scoring='accuracy'
+        scoring='f1_macro'
     )
-    grid_search.fit(representation, labels)
-    print(f"Best hyperparameters: {grid_search.best_params_}")
-    return grid_search.best_estimator_, grid_search.best_params_
+    grid_search_rf.fit(representation, labels)
+    print(f"Best hyperparameters: {grid_search_rf.best_params_}")
+    return grid_search_rf.best_estimator_, grid_search_rf.best_params_
+
+
+def treinar_classificador_com_gridsearch_svm(representation: np.array, labels: np.array, param_grid_svm: dict):
+    """
+    Trains RandomForestClassifier using GridSearchCV to find the best hyperparameters.
+
+    Returns:
+        tuple: (best_estimator, best_params)
+    """
+    svm = SVC(random_state=42)
+    grid_search_svm = GridSearchCV(
+        estimator=svm,
+        param_grid=param_grid_svm,
+        cv=5,
+        n_jobs=-1,
+        verbose=1,
+        scoring='f1_macro'
+    )
+    grid_search_svm.fit(representation, labels)
+    print(f"Best hyperparameters: {grid_search_svm.best_params_}")
+    return grid_search_svm.best_estimator_, grid_search_svm.best_params_
 
 def limpar_diretorio(path: str) -> None:
     if os.path.exists(path):
@@ -508,8 +529,8 @@ def main(number_of_representations: int = 5) -> None:
         labels_train = train_y[train_index]
         labels_val = train_y[val_index]
 
-        # Define the parameter grid
-        param_grid = {
+        # Define the parameter grid da Random Forest
+        param_grid_rf = {
             'n_estimators': [100, 200],
             'max_depth': [None, 10],
             'min_samples_split': [2, 5],
@@ -518,12 +539,25 @@ def main(number_of_representations: int = 5) -> None:
             'class_weight': ['balanced']
         }
 
+        # Define the parameter grid para o SVM
+        param_grid_svm = {
+            'C': [0.1, 1.0, 10],
+            'class_weight': ['balanced'],
+            'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+            'gamma': ['scale', 1, 0.1, 0.01]
+        }
+
         # Train classifiers with GridSearchCV
         classifiers = []
         fold_best_params = []
 
+        # for representation in representations_train:
+            # classifier, best_params = treinar_classificador_com_gridsearch_rf(representation, labels_train, param_grid_rf)
+            # classifiers.append(classifier)
+            # fold_best_params.append(best_params)
+
         for representation in representations_train:
-            classifier, best_params = treinar_classificador_com_gridsearch(representation, labels_train, param_grid)
+            classifier, best_params = treinar_classificador_com_gridsearch_svm(representation, labels_train, param_grid_svm)
             classifiers.append(classifier)
             fold_best_params.append(best_params)
 
@@ -559,8 +593,13 @@ def main(number_of_representations: int = 5) -> None:
     # Use the best parameters from the last fold
     last_fold_best_params = best_params_list[-1]
 
+    # for representation, best_params in zip(representations_train_full, last_fold_best_params):
+        # classifier = RandomForestClassifier(**best_params, random_state=42)
+        # classifier.fit(representation, train_y)
+        # final_classifiers.append(classifier)
+
     for representation, best_params in zip(representations_train_full, last_fold_best_params):
-        classifier = RandomForestClassifier(**best_params, random_state=42)
+        classifier = SVC(**best_params, random_state=42)
         classifier.fit(representation, train_y)
         final_classifiers.append(classifier)
 
