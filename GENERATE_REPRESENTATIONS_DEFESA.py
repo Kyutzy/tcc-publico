@@ -13,6 +13,9 @@ from sklearn.decomposition import PCA
 import keras.losses
 import matplotlib.pyplot as plt
 
+os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
+
+
 class Representations:
     #constructor
     def __init__(self, auxiliary_train, auxiliary_test):
@@ -20,7 +23,7 @@ class Representations:
         self.auxiliary_test = auxiliary_test
 
     def Generate_all(self, stride=2, activation='relu', filter_convolution=3, filters=[16, 32, 64, 128, 256],
-                      output_activation='linear', size_input_data=[96, 96, 1],
+                      output_activation='linear', size_input_data=[224, 224, 1],
                       n_hidden=500, n_encoder=5, optimizer=tf.keras.optimizers.legacy.SGD(learning_rate=0.001, momentum=0.9, decay=1e-6),
                       kernel_initializer=None, padding='same', epochs=20, verbose=2, batch_size=60,
                       seeds_rep = True, hidden_rep = False, arch_rep = False, number_of_repr = 50, const = 0.001):
@@ -48,7 +51,7 @@ class Representations:
         total_filters = filters
         self.const = const
 
-        x_unlabeled = [] #variavel utilizada para armazenar o vetor latente da representacao criada
+        x_unlabeled = np.array([])  # Inicializa como um array NumPy #variavel utilizada para armazenar o vetor latente da representacao criada
         input_img = Input(shape=(size_input_data[0], size_input_data[1], 1))
 
         for j in range(number_of_repr):
@@ -113,7 +116,7 @@ class Representations:
 
             print(autoencoder_model.summary())
 
-            if x_unlabeled != []:
+            if x_unlabeled.shape[0] > 0:
                 min_value = []
                 min_value.append(x_unlabeled.shape[0])
                 min_value.append(x_unlabeled.shape[1])
@@ -123,6 +126,8 @@ class Representations:
             def customized_loss(autoencoder_model):
                 self.autoencoder_model = autoencoder_model
                 def lossFunction(y_true, y_pred):
+                    # print("y_true shape:", tf.shape(y_true))
+                    # print("y_pred shape:", tf.shape(y_pred))
                     if (j == 0):
                         loss = tf.square(tf.subtract(y_true, y_pred))
                         return tf.reduce_mean(loss, axis=1)
@@ -153,7 +158,7 @@ class Representations:
                         return tf.reduce_mean(loss_final, axis=1)
                 return lossFunction
 
-            keras.losses.mean_squared_error= customized_loss
+            keras.losses.mean_squared_error = customized_loss
             tf.executing_eagerly()
 
             autoencoder_model.compile(optimizer=optimizer, loss=customized_loss(autoencoder_model), run_eagerly=True)

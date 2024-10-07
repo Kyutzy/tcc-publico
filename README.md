@@ -47,14 +47,16 @@ git submodule update --remote
 
 ## Dependências
 
-Este projeto utiliza as seguintes bibliotecas:
+Este projeto utiliza o python na versão 3.10 e as seguintes bibliotecas:
 
 - `opencv-contrib-python==4.8.1.78`
 - `scikit-learn==1.4.2`
-- `numpy==1.23.5`
-- `tensorflow==2.12.0`
-- `imutils==0.5.4`
-- `keras==2.12.0`
+- `numpy==1.26.4`
+- `tensorflow==2.10.0`
+- `keras==2.10.0`
+- `matplotlib==3.7.1`
+- `cudatoolkit==11.2.2`
+- `cudnn==8.1.0.77`
 
 ## Criando e Utilizando um Ambiente Virtual (venv)
 
