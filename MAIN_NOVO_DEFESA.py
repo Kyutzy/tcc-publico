@@ -3,11 +3,17 @@ import CLASSIFICACAO_DEFESA
 import cv2
 import numpy as np
 import os
+from sys import exit
 
 unlabeled_path = './bases-tcc/kyoto/'
 
 os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
 
+def create_results_folder():
+    os.makedirs('resultados', exist_ok=True)
+    os.makedirs('resultados/mlp', exist_ok=True)
+    os.makedirs('resultados/rf', exist_ok=True)
+    os.makedirs('resultados/svm', exist_ok=True)
 
 def load_unlabeled_database(dir_path):
     size_input_data = [224, 224, 1]
@@ -38,9 +44,23 @@ def load_unlabeled_database(dir_path):
 
 
 if __name__ == '__main__':
+    create_results_folder()
     # carregar base nao rotulada
-    trainx, testx = load_unlabeled_database(unlabeled_path)
-    teste = Representations(trainx, testx)
-    teste.Generate_all(epochs=3, seeds_rep=True, arch_rep=False, hidden_rep=True, number_of_repr=5)
-    CLASSIFICACAO_DEFESA.main(5)
+    for i in [5, 10, 15, 25, 50]:
+        trainx, testx = load_unlabeled_database(unlabeled_path)
+        teste = Representations(trainx, testx)
+        teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=False, hidden_rep=True, number_of_repr=i)
+        CLASSIFICACAO_DEFESA.main(i, 'rf')
+    
+    for i in [5, 10, 15, 25, 50]:
+        trainx, testx = load_unlabeled_database(unlabeled_path)
+        teste = Representations(trainx, testx)
+        teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=False, hidden_rep=True, number_of_repr=i)
+        CLASSIFICACAO_DEFESA.main(i, 'svm')
+    
+    for i in [5, 10, 15, 25, 50]:
+        trainx, testx = load_unlabeled_database(unlabeled_path)
+        teste = Representations(trainx, testx)
+        teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=False, hidden_rep=True, number_of_repr=i)
+        CLASSIFICACAO_DEFESA.main(i, 'mlp')
 
