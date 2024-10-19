@@ -29,6 +29,7 @@ import keras
 
 from scipy.stats import mode
 
+import Model
 
 LABELED_PATH = r".\bases-tcc\Dataset"
 
@@ -485,7 +486,7 @@ def create_mlp_model(input_shape, num_classes):
 # Compilar e treinar o modelo como mostrado anteriormente
 
 
-def main(number_of_representations: int = 5) -> None:
+def main(number_of_representations: int = 5, type_of_model: str = Model) -> None:
     n_splits = 5  # Number of folds
     quant_representation_path = rf".\temp_autoencoder\{number_of_representations} REP"
 
@@ -513,87 +514,66 @@ def main(number_of_representations: int = 5) -> None:
 
     # Generate representations for the entire training data
     gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train_full/")
-    representations_train_full = carregar_representacoes(r"./representations_train_full/")
+    representations_train = carregar_representacoes(r"./representations_train_full/")
 
     # Generate representations for the test data
     gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
     representations_test = carregar_representacoes(r"./representations_test/")
 
-    #Initialize cross-validation
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+
+
+
+
 
     acuracias = []
     relatorios_classificacao = []
     matrizes_confusao = []
     best_params_list = []
 
-    for fold, (train_index, val_index) in enumerate(skf.split(train_x, train_y)):
-        print(f"\nFold {fold + 1}/{n_splits}")
 
-        # Use indices to select subsets from the full representations
-        representations_train = [rep[train_index] for rep in representations_train_full]
-        representations_val = [rep[val_index] for rep in representations_train_full]
+    # Define the parameter grid da Random Forest
+    param_grid_rf = {
+        'n_estimators': [100, 200],
+        'max_depth': [None, 10],
+        'min_samples_split': [2, 5],
+        'min_samples_leaf': [1, 2],
+        'max_features': ['sqrt'],
+        'class_weight': ['balanced']
+    }
 
-        labels_train = train_y[train_index]
-        labels_val = train_y[val_index]
+    # Define the parameter grid para o SVM
+    param_grid_svm = {
+        'C': [0.1, 1.0, 10],
+        'class_weight': ['balanced'],
+        'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+        'gamma': ['scale', 1, 0.1, 0.01]
+    }
 
-        # Define the parameter grid da Random Forest
-        param_grid_rf = {
-            'n_estimators': [100, 200],
-            'max_depth': [None, 10],
-            'min_samples_split': [2, 5],
-            'min_samples_leaf': [1, 2],
-            'max_features': ['sqrt'],
-            'class_weight': ['balanced']
-        }
+    param_grid_MLP = {}
 
-        # Define the parameter grid para o SVM
-        param_grid_svm = {
-            'C': [0.1, 1.0, 10],
-            'class_weight': ['balanced'],
-            'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
-            'gamma': ['scale', 1, 0.1, 0.01]
-        }
+    # Train classifiers with GridSearchCV
+    classifiers = []
+    fold_best_params = []
 
-        # Train classifiers with GridSearchCV
-        classifiers = []
-        fold_best_params = []
-
-        # for representation in representations_train:
-            # classifier, best_params = treinar_classificador_com_gridsearch_rf(representation, labels_train, param_grid_rf)
-            # classifiers.append(classifier)
-            # fold_best_params.append(best_params)
-
+    if type_of_model == 'rf':
+        for representation in representations_train:
+            classifier, best_params = treinar_classificador_com_gridsearch_rf(representation, labels_train, param_grid_rf)
+            classifiers.append(classifier)
+            fold_best_params.append(best_params)
+    elif type_of_model == 'svm':
         for representation in representations_train:
             classifier, best_params = treinar_classificador_com_gridsearch_svm(representation, labels_train, param_grid_svm)
             classifiers.append(classifier)
             fold_best_params.append(best_params)
 
-        best_params_list.append(fold_best_params)
+    best_params_list.append(fold_best_params)
 
-        # Make predictions on validation set
-        predicoes = [predizer_classificacao(classifier, representation) for classifier, representation in
-                     zip(classifiers, representations_val)]
-
-        # Majority voting
-        predicao_final = voto_majoritario(predicoes)
-
-        # Evaluate the model
-        acuracia = calcular_acuracia(predicao_final, labels_val)
-        relatorio = classification_report(labels_val, predicao_final, output_dict=True)
-        matriz_confusao = calcular_matriz_de_confusao(predicao_final, labels_val)
-
-        # Store the metrics
-        acuracias.append(acuracia)
-        relatorios_classificacao.append(relatorio)
-        matrizes_confusao.append(matriz_confusao)
-
-        print(acuracias)
-        print(relatorios_classificacao)
-        print(matrizes_confusao)
-        # Optional: Clear temporary representations if need
-        # limpar_diretorio(r"./representations_train_full/")
-        # limpar_diretorio(r"./representations_test/")
+    print(acuracias)
+    print(relatorios_classificacao)
+    print(matrizes_confusao)
+    # Optional: Clear temporary representations if need
+    # limpar_diretorio(r"./representations_train_full/")
+    # limpar_diretorio(r"./representations_test/")
 
     # Retrain classifiers on full training data using the best parameters from the last fold
     final_classifiers = []
@@ -601,15 +581,16 @@ def main(number_of_representations: int = 5) -> None:
     # Use the best parameters from the last fold
     last_fold_best_params = best_params_list[-1]
 
-    # for representation, best_params in zip(representations_train_full, last_fold_best_params):
-        # classifier = RandomForestClassifier(**best_params, random_state=42)
-        # classifier.fit(representation, train_y)
-        # final_classifiers.append(classifier)
-
-    for representation, best_params in zip(representations_train_full, last_fold_best_params):
-        classifier = SVC(**best_params, random_state=42)
-        classifier.fit(representation, train_y)
-        final_classifiers.append(classifier)
+    if type_of_model == 'rf':
+        for representation, best_params in zip(representations_train, last_fold_best_params):
+            classifier = RandomForestClassifier(**best_params, random_state=42)
+            classifier.fit(representation, train_y)
+            final_classifiers.append(classifier)
+    elif type_of_model == 'svm':
+        for representation, best_params in zip(representations_train, last_fold_best_params):
+            classifier = SVC(**best_params, random_state=42)
+            classifier.fit(representation, train_y)
+            final_classifiers.append(classifier)
 
     # Predict on test data
     predicoes_teste = [predizer_classificacao(classifier, representation) for classifier, representation in
@@ -636,7 +617,7 @@ def main(number_of_representations: int = 5) -> None:
     # Load the data
 
     # Concatenar as representações
-    train_x_combined = np.concatenate(representations_train_full, axis=1)
+    train_x_combined = np.concatenate(representations_train, axis=1)
     test_x_combined = np.concatenate(representations_test, axis=1)
 
     train_x_combined, train_y = shuffle(train_x_combined, train_y, random_state=42)
