@@ -595,7 +595,7 @@ def main(number_of_representations: int = 5, type_of_model: str = 'rf') -> None:
         acuracia_media = np.mean(acuracias)
         desvio_padrao = np.std(acuracias)
 
-        with open(f'Resultados/{type_of_model}/resultados.txt-{number_of_representations}-{type_of_model}', 'w') as f:
+        with open(f'Resultados/{type_of_model}/resultados-{number_of_representations}-{type_of_model}.txt', 'w') as f:
             f.write(f"Acurácia no conjunto de teste: {acuracia_teste}\n")
             f.write(f"Relatório no conjunto de teste:\n{relatorio_teste}\n")
             f.write(f"Matriz de confusão no conjunto de teste:\n{matriz_confusao_teste}\n")
