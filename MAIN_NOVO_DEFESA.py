@@ -7,7 +7,7 @@ from sys import exit
 import gc
 import time
 
-unlabeled_path = './bases-tcc/kyoto/'
+unlabeled_path = './bases-tcc/images/'
 
 os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
 
@@ -48,14 +48,14 @@ def load_unlabeled_database(dir_path):
 if __name__ == '__main__':
     create_results_folder()
     # carregar base nao rotulada
-    # for i in [50]:
-    #     trainx, testx = load_unlabeled_database(unlabeled_path)
-    #     teste = Representations(trainx, testx)
-    #     teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
-    #     CLASSIFICACAO_DEFESA.main(i, 'rf')
-    #     time.sleep(300)
+    for i in [5, 10, 15, 25, 50]:
+        trainx, testx = load_unlabeled_database(unlabeled_path)
+        teste = Representations(trainx, testx)
+        teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
+        CLASSIFICACAO_DEFESA.main(i, 'rf')
+        time.sleep(300)
     
-    for i in [15, 25, 50]:
+    for i in [10,15, 25, 50]:
         time.sleep(300)
         trainx, testx = load_unlabeled_database(unlabeled_path)
         teste = Representations(trainx, testx)

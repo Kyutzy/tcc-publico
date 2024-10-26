@@ -490,7 +490,7 @@ def mlp_operations(num_repr, num_classes, representations_train, representations
     relatorio_mlp = classification_report(y_test_encoded, predicoes_mlp)
     matriz_confusao_mlp = confusion_matrix(y_test_encoded, predicoes_mlp)
 
-    with open(f'Resultados/mlp/mlp_results.txt-{num_repr}', 'w') as f:
+    with open(f'Resultados/mlp/mlp_results.txt-{num_repr}-prox', 'w') as f:
         f.write(f"Acurácia no conjunto de teste: {acuracia_mlp}\n")
         f.write(f"Relatório no conjunto de teste:\n{relatorio_mlp}\n")
         f.write(f"Matriz de confusão no conjunto de teste:\n{matriz_confusao_mlp}\n")
@@ -595,7 +595,7 @@ def main(number_of_representations: int = 5, type_of_model: str = 'rf') -> None:
         acuracia_media = np.mean(acuracias)
         desvio_padrao = np.std(acuracias)
 
-        with open(f'Resultados/{type_of_model}/resultados-{number_of_representations}-{type_of_model}.txt', 'w') as f:
+        with open(f'Resultados/{type_of_model}/resultados-{number_of_representations}-{type_of_model}-proxima.txt', 'w') as f:
             f.write(f"Acurácia no conjunto de teste: {acuracia_teste}\n")
             f.write(f"Relatório no conjunto de teste:\n{relatorio_teste}\n")
             f.write(f"Matriz de confusão no conjunto de teste:\n{matriz_confusao_teste}\n")
