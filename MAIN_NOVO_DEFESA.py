@@ -49,32 +49,49 @@ def load_unlabeled_database(dir_path):
 if __name__ == '__main__':
     create_results_folder()
     # carregar base nao rotulada
-    # for i in [5, 10, 15, 25, 50]:
-    #     trainx, testx = load_unlabeled_database(unlabeled_path)
-    #     teste = Representations(trainx, testx)
-    #     teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
-    #     CLASSIFICACAO_DEFESA.main(i, 'rf')
-    #     time.sleep(300)
+    for i in [5, 10, 15, 25, 50]:
+        trainx, testx = load_unlabeled_database(unlabeled_path)
+        teste = Representations(trainx, testx)
+        teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
+        CLASSIFICACAO_DEFESA.main(i, 'rf')
+        time.sleep(300)
     
-    # for i in [5,10,15, 25, 50]:
-    #     time.sleep(300)
-    #     trainx, testx = load_unlabeled_database(unlabeled_path)
-    #     teste = Representations(trainx, testx)
-    #     teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
-    #     CLASSIFICACAO_DEFESA.main(i, 'svm')
-    #     gc.collect()
-    #     time.sleep(300)
+    for i in [5,10,15, 25, 50]:
+        time.sleep(300)
+        trainx, testx = load_unlabeled_database(unlabeled_path)
+        teste = Representations(trainx, testx)
+        teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
+        CLASSIFICACAO_DEFESA.main(i, 'svm')
+        gc.collect()
+        time.sleep(300)
         
 
-    # for i in [5, 10, 15, 25, 50]:
-    #     trainx, testx = load_unlabeled_database(unlabeled_path)
-    #     teste = Representations(trainx, testx)
-    #     teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
-    #     CLASSIFICACAO_DEFESA.main(i, 'mlp')
-    #     gc.collect()
-    #     time.sleep(300)
+    for i in [5, 10, 15, 25, 50]:
+        trainx, testx = load_unlabeled_database(unlabeled_path)
+        teste = Representations(trainx, testx)
+        teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
+        CLASSIFICACAO_DEFESA.main(i, 'mlp')
+        gc.collect()
+        time.sleep(300)
 
-    #os.system('shutdown /s /t 300')
+    try:
+        subprocess.run(["git", "add", "."], check=True)
+        print("Arquivos adicionados com sucesso.")
+                
+        # Faz o commit com a mensagem especificada
+        commit_message = "results(CVRemoval): upload dos resultados"
+        subprocess.run(["git", "commit", "-m", commit_message], check=True)
+        print(f"Commit realizado com a mensagem: '{commit_message}'")
+
+        # Realiza o push para o branch 'CVRemoval'
+        subprocess.run(["git", "push", "origin", "CVRemoval"], check=True)
+        print("Push realizado com sucesso para o branch 'CVRemoval'.")
+    except subprocess.CalledProcessError as e:
+        print(f"Ocorreu um erro ao executar o comando: {e.cmd}")
+        print(f"O retorno foi: {e.returncode}")
+        print(f"O output foi: {e.output}")
+    finally:
+        os.system('shutdown /s /t 300')
 
 
 # from itertools import product
@@ -93,14 +110,3 @@ if __name__ == '__main__':
 #     CLASSIFICACAO_DEFESA.main(5, 'rf', seeds_rep=seeds_rep, arch_rep=arch_rep, hidden_rep=hidden_rep)
 
 
-subprocess.run(["git", "add", "."], check=True)
-print("Arquivos adicionados com sucesso.")
-        
-# Faz o commit com a mensagem especificada
-commit_message = "results(CVRemoval): upload dos resultados"
-subprocess.run(["git", "commit", "-m", commit_message], check=True)
-print(f"Commit realizado com a mensagem: '{commit_message}'")
-
-# Realiza o push para o branch 'CVRemoval'
-subprocess.run(["git", "push", "origin", "CVRemoval"], check=True)
-print("Push realizado com sucesso para o branch 'CVRemoval'.")

@@ -1,14 +1,14 @@
-Acurácia no conjunto de teste: 0.768348623853211
+Acurácia no conjunto de teste: 0.7614678899082569
 Relatório no conjunto de teste:
               precision    recall  f1-score   support
 
-Kidney_stone       0.93      0.54      0.68       201
-      Normal       0.71      0.97      0.82       235
+Kidney_stone       0.94      0.52      0.67       201
+      Normal       0.70      0.97      0.81       235
 
-    accuracy                           0.77       436
-   macro avg       0.82      0.75      0.75       436
-weighted avg       0.81      0.77      0.76       436
+    accuracy                           0.76       436
+   macro avg       0.82      0.74      0.74       436
+weighted avg       0.81      0.76      0.75       436
 
 Matriz de confusão no conjunto de teste:
-[[108  93]
- [  8 227]]
+[[104  97]
+ [  7 228]]
