@@ -47,32 +47,32 @@ def load_unlabeled_database(dir_path):
 
 
 if __name__ == '__main__':
-    create_results_folder()
-    # carregar base nao rotulada
-    for i in [5, 10, 15, 25, 50]:
-        trainx, testx = load_unlabeled_database(unlabeled_path)
-        teste = Representations(trainx, testx)
-        teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
-        CLASSIFICACAO_DEFESA.main(i, 'rf')
-        time.sleep(300)
+    # # create_results_folder()
+    # # carregar base nao rotulada
+    # # for i in [5, 10, 15, 25, 50]:
+    # #     trainx, testx = load_unlabeled_database(unlabeled_path)
+    # #     teste = Representations(trainx, testx)
+    # #     teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
+    # #     CLASSIFICACAO_DEFESA.main(i, 'rf')
+    # #     time.sleep(300)
     
-    for i in [5,10,15, 25, 50]:
-        time.sleep(300)
-        trainx, testx = load_unlabeled_database(unlabeled_path)
-        teste = Representations(trainx, testx)
-        teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
-        CLASSIFICACAO_DEFESA.main(i, 'svm')
-        gc.collect()
-        time.sleep(300)
+    # # for i in [5,10,15, 25, 50]:
+    # #     time.sleep(300)
+    # #     trainx, testx = load_unlabeled_database(unlabeled_path)
+    # #     teste = Representations(trainx, testx)
+    # #     teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
+    # #     CLASSIFICACAO_DEFESA.main(i, 'svm')
+    # #     gc.collect()
+    # #     time.sleep(300)
         
 
-    for i in [5, 10, 15, 25, 50]:
-        trainx, testx = load_unlabeled_database(unlabeled_path)
-        teste = Representations(trainx, testx)
-        teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
-        CLASSIFICACAO_DEFESA.main(i, 'mlp')
-        gc.collect()
-        time.sleep(300)
+    # for i in [50]:
+    #     trainx, testx = load_unlabeled_database(unlabeled_path)
+    #     teste = Representations(trainx, testx)
+    #     teste.Generate_all(epochs=5, seeds_rep=True, arch_rep=True, hidden_rep=False, number_of_repr=i)
+    #     CLASSIFICACAO_DEFESA.main(i, 'mlp')
+    #     gc.collect()
+    #     time.sleep(300)
 
     try:
         subprocess.run(["git", "add", "."], check=True)
@@ -91,7 +91,7 @@ if __name__ == '__main__':
         print(f"O retorno foi: {e.returncode}")
         print(f"O output foi: {e.output}")
     finally:
-        os.system('shutdown /s /t 300')
+        os.system('shutdown /s /t 20')
 
 
 # from itertools import product
