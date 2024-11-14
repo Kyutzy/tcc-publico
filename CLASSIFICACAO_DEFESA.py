@@ -29,6 +29,9 @@ import keras
 
 from scipy.stats import mode
 
+from Model import Model
+from RandomForestModel import RandomForestModel
+from SVMModel import SVMModel
 
 LABELED_PATH = r".\bases-tcc\Dataset"
 
@@ -408,53 +411,13 @@ def voto_majoritario(predicoes: np.array) -> np.array:
 
     return predicao_final
 
-def treinar_classificador_com_gridsearch_rf(representation: np.array, labels: np.array, param_grid_rf: dict):
-    """
-    Trains RandomForestClassifier using GridSearchCV to find the best hyperparameters.
-
-    Returns:
-        tuple: (best_estimator, best_params)
-    """
-    rf = RandomForestClassifier(random_state=42)
-    grid_search_rf = GridSearchCV(
-        estimator=rf,
-        param_grid=param_grid_rf,
-        cv=5,
-        n_jobs=-1,
-        verbose=1,
-        scoring='f1_macro'
-    )
-    grid_search_rf.fit(representation, labels)
-    print(f"Best hyperparameters: {grid_search_rf.best_params_}")
-    return grid_search_rf.best_estimator_, grid_search_rf.best_params_
-
-
-def treinar_classificador_com_gridsearch_svm(representation: np.array, labels: np.array, param_grid_svm: dict):
-    """
-    Trains RandomForestClassifier using GridSearchCV to find the best hyperparameters.
-
-    Returns:
-        tuple: (best_estimator, best_params)
-    """
-    svm = SVC(random_state=42)
-    grid_search_svm = GridSearchCV(
-        estimator=svm,
-        param_grid=param_grid_svm,
-        cv=5,
-        n_jobs=-1,
-        verbose=1,
-        scoring='f1_macro'
-    )
-    grid_search_svm.fit(representation, labels)
-    print(f"Best hyperparameters: {grid_search_svm.best_params_}")
-    return grid_search_svm.best_estimator_, grid_search_svm.best_params_
 
 def limpar_diretorio(path: str) -> None:
     if os.path.exists(path):
         shutil.rmtree(path)
     os.makedirs(path)
 
-def create_mlp_model(input_shape, num_classes):
+def create_mlp_model(input_shape: tuple, num_classes: int) -> tf.keras.models.Model:
     model = tf.keras.models.Sequential()
 
     # Camada de entrada
@@ -478,174 +441,15 @@ def create_mlp_model(input_shape, num_classes):
 
     # Camada de saída
     model.add(tf.keras.layers.Dense(num_classes, activation='softmax'))
-
     return model
 
-
-# Compilar e treinar o modelo como mostrado anteriormente
-
-
-def main(number_of_representations: int = 5) -> None:
-    n_splits = 5  # Number of folds
-    quant_representation_path = rf".\temp_autoencoder\{number_of_representations} REP"
-
-    dataset_complete = split_train_test_by_number_of_autoencoders()
-
-    # Combine training data
-    train_x = np.concatenate((dataset_complete['kidney_train'][0], dataset_complete['normal_train'][0]), axis=0)
-    train_y = np.concatenate((dataset_complete['kidney_train'][1], dataset_complete['normal_train'][1]), axis=0)
-
-    # Test data remains separate
-    # test_x = np.concatenate((dataset_complete['kidney_test'][0], dataset_complete['normal_test'][0]), axis=0)
-    # test_y = np.concatenate((dataset_complete['kidney_test'][1], dataset_complete['normal_test'][1]), axis=0)
-
-    # Concatenar train_x com test_x
-    # train_x = np.concatenate((train_X, test_x), axis=0)
-
-    # Concatenar train_y com test_y
-    # train_y = np.concatenate((train_Y, test_y), axis=0)
-
-    # Shuffle data
-    train_x, train_y = shuffle(train_x, train_y, random_state=42)
-    #test_x, test_y = shuffle(test_x, test_y, random_state=42)
-
-    train_x, test_x, train_y, test_y = train_test_split(train_x, train_y, test_size=0.3, random_state=42, shuffle=True)
-
-    # Generate representations for the entire training data
-    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train_full/")
-    representations_train_full = carregar_representacoes(r"./representations_train_full/")
-
-    # Generate representations for the test data
-    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
-    representations_test = carregar_representacoes(r"./representations_test/")
-
-    #Initialize cross-validation
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-
-    acuracias = []
-    relatorios_classificacao = []
-    matrizes_confusao = []
-    best_params_list = []
-
-    for fold, (train_index, val_index) in enumerate(skf.split(train_x, train_y)):
-        print(f"\nFold {fold + 1}/{n_splits}")
-
-        # Use indices to select subsets from the full representations
-        representations_train = [rep[train_index] for rep in representations_train_full]
-        representations_val = [rep[val_index] for rep in representations_train_full]
-
-        labels_train = train_y[train_index]
-        labels_val = train_y[val_index]
-
-        # Define the parameter grid da Random Forest
-        param_grid_rf = {
-            'n_estimators': [100, 200],
-            'max_depth': [None, 10],
-            'min_samples_split': [2, 5],
-            'min_samples_leaf': [1, 2],
-            'max_features': ['sqrt'],
-            'class_weight': ['balanced']
-        }
-
-        # Define the parameter grid para o SVM
-        param_grid_svm = {
-            'C': [0.1, 1.0, 10],
-            'class_weight': ['balanced'],
-            'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
-            'gamma': ['scale', 1, 0.1, 0.01]
-        }
-
-        # Train classifiers with GridSearchCV
-        classifiers = []
-        fold_best_params = []
-
-        # for representation in representations_train:
-            # classifier, best_params = treinar_classificador_com_gridsearch_rf(representation, labels_train, param_grid_rf)
-            # classifiers.append(classifier)
-            # fold_best_params.append(best_params)
-
-        for representation in representations_train:
-            classifier, best_params = treinar_classificador_com_gridsearch_svm(representation, labels_train, param_grid_svm)
-            classifiers.append(classifier)
-            fold_best_params.append(best_params)
-
-        best_params_list.append(fold_best_params)
-
-        # Make predictions on validation set
-        predicoes = [predizer_classificacao(classifier, representation) for classifier, representation in
-                     zip(classifiers, representations_val)]
-
-        # Majority voting
-        predicao_final = voto_majoritario(predicoes)
-
-        # Evaluate the model
-        acuracia = calcular_acuracia(predicao_final, labels_val)
-        relatorio = classification_report(labels_val, predicao_final, output_dict=True)
-        matriz_confusao = calcular_matriz_de_confusao(predicao_final, labels_val)
-
-        # Store the metrics
-        acuracias.append(acuracia)
-        relatorios_classificacao.append(relatorio)
-        matrizes_confusao.append(matriz_confusao)
-
-        print(acuracias)
-        print(relatorios_classificacao)
-        print(matrizes_confusao)
-        # Optional: Clear temporary representations if need
-        # limpar_diretorio(r"./representations_train_full/")
-        # limpar_diretorio(r"./representations_test/")
-
-    # Retrain classifiers on full training data using the best parameters from the last fold
-    final_classifiers = []
-
-    # Use the best parameters from the last fold
-    last_fold_best_params = best_params_list[-1]
-
-    # for representation, best_params in zip(representations_train_full, last_fold_best_params):
-        # classifier = RandomForestClassifier(**best_params, random_state=42)
-        # classifier.fit(representation, train_y)
-        # final_classifiers.append(classifier)
-
-    for representation, best_params in zip(representations_train_full, last_fold_best_params):
-        classifier = SVC(**best_params, random_state=42)
-        classifier.fit(representation, train_y)
-        final_classifiers.append(classifier)
-
-    # Predict on test data
-    predicoes_teste = [predizer_classificacao(classifier, representation) for classifier, representation in
-                       zip(final_classifiers, representations_test)]
-
-    # Majority voting on test predictions
-    predicao_final_teste = voto_majoritario(predicoes_teste)
-
-    # Evaluate on test data
-    acuracia_teste = calcular_acuracia(predicao_final_teste, test_y)
-    relatorio_teste = classification_report(test_y, predicao_final_teste)
-    matriz_confusao_teste = calcular_matriz_de_confusao(predicao_final_teste, test_y)
-
-    print("\nResultados no conjunto de teste:")
-    print(relatorio_teste)
-    print(f"Acurácia no conjunto de teste: {acuracia_teste}")
-    print(f"Matriz de confusão no conjunto de teste:\n{matriz_confusao_teste}")
-
-    # Average cross-validation results
-    acuracia_media = np.mean(acuracias)
-    desvio_padrao = np.std(acuracias)
-    print(f"\nAcurácia média na validação cruzada: {acuracia_media:.4f} ± {desvio_padrao:.4f}")
-
-    # Load the data
-
-    # Concatenar as representações
-    train_x_combined = np.concatenate(representations_train_full, axis=1)
+def mlp_operations(num_repr, num_classes, representations_train, representations_test, train_y, test_y):
+    train_x_combined = np.concatenate(representations_train, axis=1)
     test_x_combined = np.concatenate(representations_test, axis=1)
 
     train_x_combined, train_y = shuffle(train_x_combined, train_y, random_state=42)
     test_x_combined, test_y = shuffle(test_x_combined, test_y, random_state=42)
 
-    # Definir o número de classes
-    num_classes = 2  # Ajuste conforme o número de classes no seu problema
-
-    # Criar o modelo MLP
     mlp = create_mlp_model(input_shape=(200,), num_classes=num_classes)
 
     # Compilar o modelo
@@ -686,21 +490,115 @@ def main(number_of_representations: int = 5) -> None:
     relatorio_mlp = classification_report(y_test_encoded, predicoes_mlp)
     matriz_confusao_mlp = confusion_matrix(y_test_encoded, predicoes_mlp)
 
-    print("\nResultados MLP no conjunto de teste:")
-    print(relatorio_mlp)
-    print(f"Acurácia MLP no conjunto de teste: {acuracia_mlp}")
-    print(f"Matriz de confusão MLP no conjunto de teste:\n{matriz_confusao_mlp}")
+    with open(f'Resultados/mlp/mlp_results.txt-{num_repr}-prox', 'w') as f:
+        f.write(f"Acurácia no conjunto de teste: {acuracia_mlp}\n")
+        f.write(f"Relatório no conjunto de teste:\n{relatorio_mlp}\n")
+        f.write(f"Matriz de confusão no conjunto de teste:\n{matriz_confusao_mlp}\n")
+        f.write(f"Classes: {label_encoder.classes_}\n")
 
-    print("\nResultados no conjunto de teste:")
-    print(relatorio_teste)
-    print(f"Acurácia no conjunto de teste: {acuracia_teste}")
-    print(f"Matriz de confusão no conjunto de teste:\n{matriz_confusao_teste}")
+def main(number_of_representations: int = 5, type_of_model: str = 'rf') -> None:
+    if type_of_model not in ['rf', 'svm', 'mlp']:
+        raise ValueError("O tipo de modelo deve ser 'rf', 'svm' ou 'mlp'.")
+    quant_representation_path = rf".\temp_autoencoder\{number_of_representations} REP"
 
-    # Average cross-validation results
-    acuracia_media = np.mean(acuracias)
-    desvio_padrao = np.std(acuracias)
-    print(f"\nAcurácia média na validação cruzada: {acuracia_media:.4f} ± {desvio_padrao:.4f}")
+    dataset_complete = split_train_test_by_number_of_autoencoders()
 
+    # Combine training data
+    train_x = np.concatenate((dataset_complete['kidney_train'][0], dataset_complete['normal_train'][0]), axis=0)
+    train_y = np.concatenate((dataset_complete['kidney_train'][1], dataset_complete['normal_train'][1]), axis=0)
+
+    # Test data remains separate
+    # test_x = np.concatenate((dataset_complete['kidney_test'][0], dataset_complete['normal_test'][0]), axis=0)
+    # test_y = np.concatenate((dataset_complete['kidney_test'][1], dataset_complete['normal_test'][1]), axis=0)
+
+    # Concatenar train_x com test_x
+    # train_x = np.concatenate((train_X, test_x), axis=0)
+
+    # Concatenar train_y com test_y
+    # train_y = np.concatenate((train_Y, test_y), axis=0)
+
+    # Shuffle data
+    train_x, train_y = shuffle(train_x, train_y, random_state=42)
+    #test_x, test_y = shuffle(test_x, test_y, random_state=42)
+
+    train_x, test_x, train_y, test_y = train_test_split(train_x, train_y, test_size=0.3, random_state=42, shuffle=True)
+
+    # Generate representations for the entire training data
+    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, train_x, r"./representations_train_full/")
+    representations_train = carregar_representacoes(r"./representations_train_full/")
+
+    # Generate representations for the test data
+    gerar_representacoes_base_atraves_de_kyoto(quant_representation_path, test_x, r"./representations_test/")
+    representations_test = carregar_representacoes(r"./representations_test/")
+
+    strategy = {
+        'rf': RandomForestModel,
+        'svm': SVMModel,
+        'mlp' : Model
+    }
+
+    final_strategy_classifier: Model = strategy.get(type_of_model)()
+    acuracias = []
+    relatorios_classificacao = []
+    matrizes_confusao = []
+    best_params_list = []
+
+    if type_of_model == 'mlp':
+        num_classes = 2  # Ajuste conforme o número de classes no seu problema
+        mlp_operations(number_of_representations, num_classes, representations_train, representations_test, train_y, test_y)
+    else:
+        # Train classifiers with GridSearchCV
+        classifiers = []
+        fold_best_params = []
+        for representation in representations_train:
+            classifier, best_params = final_strategy_classifier.use_grid_search(representation, train_y)
+            classifiers.append(classifier)
+            fold_best_params.append(best_params)
+        best_params_list.append(fold_best_params)
+
+        print(acuracias)
+        print(relatorios_classificacao)
+        print(matrizes_confusao)
+        # Optional: Clear temporary representations if need
+        # limpar_diretorio(r"./representations_train_full/")
+        # limpar_diretorio(r"./representations_test/")
+
+        # Retrain classifiers on full training data using the best parameters from the last fold
+        final_classifiers = []
+
+        # Use the best parameters from the last fold
+        last_fold_best_params = best_params_list[-1]
+
+        for representation, best_params in zip(representations_train, last_fold_best_params):
+            classifier = final_strategy_classifier.create_model(**best_params)
+            classifier.fit(representation, train_y)
+            final_classifiers.append(classifier)
+
+        # Predict on test data
+        predicoes_teste = [predizer_classificacao(classifier, representation) for classifier, representation in
+                        zip(final_classifiers, representations_test)]
+
+        # Majority voting on test predictions
+        predicao_final_teste = voto_majoritario(predicoes_teste)
+
+        # Evaluate on test data
+        acuracia_teste = calcular_acuracia(predicao_final_teste, test_y)
+        relatorio_teste = classification_report(test_y, predicao_final_teste)
+        matriz_confusao_teste = calcular_matriz_de_confusao(predicao_final_teste, test_y)
+
+        print("\nResultados no conjunto de teste:")
+        print(relatorio_teste)
+        print(f"Acurácia no conjunto de teste: {acuracia_teste}")
+        print(f"Matriz de confusão no conjunto de teste:\n{matriz_confusao_teste}")
+
+        # Average cross-validation results
+        acuracia_media = np.mean(acuracias)
+        desvio_padrao = np.std(acuracias)
+
+        with open(f'Resultados/{type_of_model}/resultados-{number_of_representations}-{type_of_model}-proxima.txt', 'w') as f:
+            f.write(f"Acurácia no conjunto de teste: {acuracia_teste}\n")
+            f.write(f"Relatório no conjunto de teste:\n{relatorio_teste}\n")
+            f.write(f"Matriz de confusão no conjunto de teste:\n{matriz_confusao_teste}\n")
 
 
 if __name__ == '__main__':

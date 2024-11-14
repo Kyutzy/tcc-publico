@@ -14,6 +14,7 @@ import keras.losses
 import matplotlib.pyplot as plt
 
 os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
+os.environ['TF_USE_LEGACY_KERAS'] = 'True'
 
 
 class Representations:
